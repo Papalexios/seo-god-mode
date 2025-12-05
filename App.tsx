@@ -251,10 +251,13 @@ const App = () => {
 
             console.log('[WP Diagnostics] Testing REST API access...');
 
+            const headers = new Headers();
+            headers.set('Authorization', authHeader);
+
             try {
                 const postsRes = await fetchWordPressWithRetry(`${baseUrl}/wp-json/wp/v2/posts?per_page=20&status=any&_fields=id,slug,title,status`, {
                     method: 'GET',
-                    headers: { 'Authorization': authHeader }
+                    headers: headers
                 });
                 const postsData = await postsRes.json();
                 results.posts = Array.isArray(postsData) ? postsData : [];
@@ -267,7 +270,7 @@ const App = () => {
             try {
                 const typesRes = await fetchWordPressWithRetry(`${baseUrl}/wp-json/wp/v2/types`, {
                     method: 'GET',
-                    headers: { 'Authorization': authHeader }
+                    headers: headers
                 });
                 const typesData = await typesRes.json();
                 results.postTypes = Object.keys(typesData || {});
