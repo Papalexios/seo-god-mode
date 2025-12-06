@@ -1058,6 +1058,15 @@ export class MaintenanceEngine {
                 let checkedCount = 0;
                 let skippedCount = 0;
 
+                // QUALITY FILTER: Block low-quality document sharing sites and spam domains
+                const BLOCKED_DOMAINS = [
+                    'quora.com', 'scribd.com', 'dokumen.pub', 'asau.ru', 'slideserve.com',
+                    'studylib.net', 'document.pub', 'pdfcoffee.com', 'slideshare.net',
+                    'academia.edu', 'researchgate.net', 'coursehero.com', 'chegg.com',
+                    'slideplayer.com', 'vdocuments.mx', 'fdocuments.in', 'kupdf.net',
+                    'pdfslide.net', 'issuu.com', 'yumpu.com', 'calameo.com'
+                ];
+
                 for (const link of potentialLinks) {
                     if (validatedLinks.length >= 10) break;
 
@@ -1066,6 +1075,14 @@ export class MaintenanceEngine {
 
                         const linkDomain = new URL(link.link).hostname.replace('www.', '');
 
+                        // Skip if blocked domain
+                        if (BLOCKED_DOMAINS.some(blocked => linkDomain.includes(blocked))) {
+                            this.logCallback(`🚫 BLOCKED (Low Quality): ${linkDomain}`);
+                            skippedCount++;
+                            continue;
+                        }
+
+                        // Skip if same domain as WordPress site
                         if (wpConfig.url) {
                             const siteDomain = new URL(wpConfig.url).hostname.replace('www.', '');
                             if (linkDomain === siteDomain) {

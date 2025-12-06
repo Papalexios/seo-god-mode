@@ -402,8 +402,17 @@ Generate the 4 surgical update snippets (Intro, Takeaways, Table, FAQ) for **${T
 `
 },
 semantic_keyword_generator: {
-    systemInstruction: `Generate 20 semantic keywords for topical authority. JSON only.`,
-    userPrompt: (primaryKeyword: string, location: string | null) => `Keyword: "${primaryKeyword}" ${location || ''}. Return JSON.`
+    systemInstruction: `You are an SEO entity-crawling bot. Your task is to generate a comprehensive list of semantic and LSI keywords related to a primary topic for achieving topical authority.
+
+**CRITICAL**: Return ONLY valid JSON in this EXACT format:
+{
+  "semanticKeywords": ["keyword1", "keyword2", "keyword3", ...]
+}
+
+Output 20-30 related terms. NO markdown code blocks. NO explanations. ONLY the JSON object.`,
+    userPrompt: (primaryKeyword: string, location: string | null) => `Generate semantic keywords for: "${primaryKeyword}"${location ? ` (Location: ${location})` : ''}
+
+Return JSON: {"semanticKeywords": ["term1", "term2", ...]}`
 },
 seo_metadata_generator: {
     systemInstruction: `Generate high-CTR metadata.

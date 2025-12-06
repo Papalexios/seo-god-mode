@@ -132,6 +132,8 @@ const discoverPostIdAndEndpoint = async (url: string): Promise<{ id: number, end
         const html = await response.text();
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
+
+        // Method 1: Check for API link in <head>
         const apiLink = doc.querySelector('link[rel="https://api.w.org/"]');
         if (apiLink) {
             const href = apiLink.getAttribute('href');
@@ -140,8 +142,36 @@ const discoverPostIdAndEndpoint = async (url: string): Promise<{ id: number, end
                 if (match) return { id: parseInt(match[1]), endpoint: href };
             }
         }
+
+        // Method 2: Check for post ID in body classes (WordPress adds class="postid-123")
+        const bodyClasses = doc.body?.className || '';
+        const postIdMatch = bodyClasses.match(/\bpostid-(\d+)\b/);
+        if (postIdMatch) {
+            const postId = parseInt(postIdMatch[1]);
+            console.log(`[discoverPostIdAndEndpoint] Found post ID ${postId} from body classes`);
+            return { id: postId, endpoint: '' };
+        }
+
+        // Method 3: Check article tag for post ID (id="post-123")
+        const article = doc.querySelector('article[id^="post-"]');
+        if (article) {
+            const articleId = article.getAttribute('id');
+            if (articleId) {
+                const match = articleId.match(/post-(\d+)/);
+                if (match) {
+                    const postId = parseInt(match[1]);
+                    console.log(`[discoverPostIdAndEndpoint] Found post ID ${postId} from article ID`);
+                    return { id: postId, endpoint: '' };
+                }
+            }
+        }
+
+        console.log(`[discoverPostIdAndEndpoint] No post ID found in HTML for ${url}`);
         return null;
-    } catch (e) { return null; }
+    } catch (e) {
+        console.log(`[discoverPostIdAndEndpoint] Error: ${e}`);
+        return null;
+    }
 };
 
 const generateAndValidateReferences = async (keyword: string, metaDescription: string, serperApiKey: string) => {
