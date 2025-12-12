@@ -490,14 +490,18 @@ export class MaintenanceEngine {
                 }
                 const targetPage = pages[0];
                 
+                // SOTA SMART SKIP: Check if Last Modified Date is older than our last optimization
                 const lastOptimization = localStorage.getItem(`sota_last_proc_${targetPage.id}`);
                 const sitemapDate = targetPage.lastMod ? new Date(targetPage.lastMod).getTime() : 0;
                 const lastOptDate = lastOptimization ? parseInt(lastOptimization) : 0;
 
+                // If sitemap date exists and is OLDER than our last optimization timestamp, 
+                // it means the content hasn't changed since we last fixed it. SKIP.
                 if (sitemapDate > 0 && lastOptDate > sitemapDate) {
                     this.logCallback(`⏭️ Skipping "${targetPage.title}" - Content unchanged since last optimization.`);
+                    // Bump timestamp to push it back in priority queue
                     localStorage.setItem(`sota_last_proc_${targetPage.id}`, Date.now().toString());
-                    await delay(100);
+                    await delay(100); // minimal delay for UI updates
                     continue;
                 }
 
@@ -514,6 +518,8 @@ export class MaintenanceEngine {
 
     private async getPrioritizedPages(context: GenerationContext): Promise<SitemapPage[]> {
         let candidates = [...context.existingPages];
+        
+        // Filter out recently processed (within 24h) to avoid loops
         candidates = candidates.filter(p => {
             const lastProcessed = localStorage.getItem(`sota_last_proc_${p.id}`);
             if (!lastProcessed) return true;

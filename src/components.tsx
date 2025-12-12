@@ -110,7 +110,6 @@ const ScoreGauge = ({ score, size = 80 }: { score: number; size?: number }) => {
     );
 };
 
-// ... (Keep RankGuardian) ...
 interface RankGuardianProps {
     item: ContentItem;
     editedSeo: { title: string; metaDescription: string; slug: string };
