@@ -7,9 +7,9 @@ import { generateFullSchema, generateSchemaMarkup } from './schema-generator';
 import { PROMPT_TEMPLATES } from './prompts';
 import { AI_MODELS } from './constants';
 import { itemsReducer } from './state';
-import { callAI, generateContent, generateImageWithFallback, publishItemToWordPress, maintenanceEngine } from './services';
+import { callAI, generateContent, generateImageWithFallback, publishItemToWordPress, maintenanceEngine, godModeService } from './services';
 import { 
-    AppFooter, AnalysisModal, BulkPublishModal, ReviewModal, SidebarNav, SkeletonLoader, ApiKeyInput, CheckIcon, XIcon, WordPressEndpointInstructions
+    AppFooter, AnalysisModal, BulkPublishModal, ReviewModal, SidebarNav, SkeletonLoader, ApiKeyInput, CheckIcon, XIcon, WordPressEndpointInstructions, MoneyPanel
 } from './components';
 import { 
     SitemapPage, ContentItem, GeneratedContent, SiteInfo, ExpandedGeoTargeting, ApiClients, WpConfig, NeuronConfig, GapAnalysisSuggestion, GenerationContext
@@ -55,7 +55,7 @@ const App = () => {
     const [activeView, setActiveView] = useState('setup');
     const [apiKeys, setApiKeys] = useState(() => {
         const saved = localStorage.getItem('apiKeys');
-        const defaults = { geminiApiKey: '', openaiApiKey: '', anthropicApiKey: '', openrouterApiKey: '', serperApiKey: '', groqApiKey: '' };
+        const defaults = { openaiApiKey: '', anthropicApiKey: '', openrouterApiKey: '', serperApiKey: '', groqApiKey: '' };
         try { return saved ? JSON.parse(saved) : defaults; } catch { return defaults; }
     });
     const [apiKeyStatus, setApiKeyStatus] = useState({ gemini: 'idle', openai: 'idle', anthropic: 'idle', openrouter: 'idle', serper: 'idle', groq: 'idle' } as Record<string, 'idle' | 'validating' | 'valid' | 'invalid'>);
@@ -123,7 +123,7 @@ const App = () => {
     const [godModeLogs, setGodModeLogs] = useState<string[]>([]);
     const [optimizedHistory, setOptimizedHistory] = useState<OptimizedLog[]>([]);
     
-    // Pagination State for Hub Table
+    // Pagination State
     const [hubPage, setHubPage] = useState(1);
     const ITEMS_PER_PAGE = 20;
 
@@ -159,10 +159,18 @@ const App = () => {
     useEffect(() => { bootstrapApp(); }, []);
 
     useEffect(() => {
-        if (apiKeys.geminiApiKey) {
-            validateApiKey('gemini', apiKeys.geminiApiKey);
-        }
-    }, [apiKeys.geminiApiKey]);
+        (async () => {
+            if (process.env.API_KEY) {
+                try {
+                    setApiKeyStatus(prev => ({...prev, gemini: 'validating' }));
+                    const geminiClient = new GoogleGenAI({ apiKey: process.env.API_KEY });
+                    await callAiWithRetry(() => geminiClient.models.generateContent({ model: AI_MODELS.GEMINI_FLASH, contents: 'test' }));
+                    setApiClients(prev => ({ ...prev, gemini: geminiClient }));
+                    setApiKeyStatus(prev => ({...prev, gemini: 'valid' }));
+                } catch (e) { setApiClients(prev => ({ ...prev, gemini: null })); setApiKeyStatus(prev => ({...prev, gemini: 'invalid' })); }
+            } else { setApiClients(prev => ({ ...prev, gemini: null })); setApiKeyStatus(prev => ({...prev, gemini: 'invalid' })); }
+        })();
+    }, []);
 
     useEffect(() => {
         // @ts-ignore
@@ -190,6 +198,13 @@ const App = () => {
         }
     }, [isGodMode, existingPages, apiClients, isCrawling]); 
 
+    // SOTA: Apply God Mode Opportunity Scoring whenever pages change
+    useEffect(() => {
+        if (existingPages.length > 0 && !existingPages[0].opportunityScore) {
+            setExistingPages(prev => prev.map(p => godModeService.calculateOpportunityScore(p)));
+        }
+    }, [existingPages.length]);
+
     const validateApiKey = useCallback(debounce(async (provider: string, key: string) => {
         if (!key) { setApiKeyStatus(prev => ({ ...prev, [provider]: 'idle' })); setApiClients(prev => ({ ...prev, [provider]: null })); return; }
         setApiKeyStatus(prev => ({ ...prev, [provider]: 'validating' }));
@@ -197,7 +212,6 @@ const App = () => {
             let client;
             let isValid = false;
             switch (provider) {
-                case 'gemini': client = new GoogleGenAI({ apiKey: key }); await callAiWithRetry(() => client.models.generateContent({ model: AI_MODELS.GEMINI_FLASH, contents: 'test' })); isValid = true; break;
                 case 'openai': client = new OpenAI({ apiKey: key, dangerouslyAllowBrowser: true }); await callAiWithRetry(() => client.models.list()); isValid = true; break;
                 case 'anthropic': client = new Anthropic({ apiKey: key }); await callAiWithRetry(() => client.messages.create({ model: AI_MODELS.ANTHROPIC_HAIKU, max_tokens: 1, messages: [{ role: "user", content: "test" }], })); isValid = true; break;
                 case 'openrouter': client = new OpenAI({ baseURL: "https://openrouter.ai/api/v1", apiKey: key, dangerouslyAllowBrowser: true, defaultHeaders: { 'HTTP-Referer': window.location.href, 'X-Title': 'WP Content Optimizer Pro', } }); await callAiWithRetry(() => client.chat.completions.create({ model: 'google/gemini-2.5-flash', messages: [{ role: "user", content: "test" }], max_tokens: 1 })); isValid = true; break;
@@ -257,7 +271,6 @@ const App = () => {
     const handleCrawlSitemap = async () => { 
         if (!sitemapUrl) { setCrawlMessage('Enter URL.'); return; } 
         setIsCrawling(true); setCrawlMessage(''); 
-        // Don't wipe existing pages to preserve state
         const onCrawlProgress = (message: string) => setCrawlMessage(message); 
         try { 
             const sitemapsToCrawl = [sitemapUrl]; 
@@ -301,8 +314,8 @@ const App = () => {
             }); 
             
             // SOTA State Merging: Preserve existing analysis
-            setExistingPages(prev => {
-                const existingMap = new Map(prev.map(p => [p.id, p]));
+            setExistingPages((prev: SitemapPage[]) => {
+                const existingMap = new Map<string, SitemapPage>(prev.map(p => [p.id, p] as [string, SitemapPage]));
                 return discoveredPages.map(newPage => {
                     const existing = existingMap.get(newPage.id);
                     if (existing && existing.status === 'analyzed') {
@@ -626,6 +639,17 @@ const App = () => {
                                                 </div>
                                             </div>
                                         )}
+                                        
+                                        {/* SOTA MONEY PANEL */}
+                                        {existingPages.length > 0 && <MoneyPanel pages={existingPages} onExecute={(p) => {
+                                            // Force God Mode Execution on this page immediately
+                                            setIsGodMode(true);
+                                            localStorage.setItem('sota_god_mode', 'true');
+                                            // Prioritize it by resetting timestamp
+                                            localStorage.removeItem(`sota_last_proc_${p.id}`);
+                                            // Optionally trigger a manual call or rely on loop pick-up
+                                            alert(`"${p.title}" added to God Mode Priority Queue. Starting Engine...`);
+                                        }} />}
                                     </div>
 
                                     {existingPages.length === 0 && !sitemapUrl ? (

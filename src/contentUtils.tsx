@@ -195,7 +195,8 @@ export const performSurgicalUpdate = (originalHtml: string, snippets: any): stri
     const parser = new DOMParser();
     const doc = parser.parseFromString(originalHtml, 'text/html');
     const body = doc.body;
-
+    
+    // Simple prepend intro, append FAQ if they exist, for reliability
     if (snippets.introHtml) {
         const div = doc.createElement('div');
         div.innerHTML = snippets.introHtml;
@@ -205,11 +206,6 @@ export const performSurgicalUpdate = (originalHtml: string, snippets: any): stri
         const faq = doc.createElement('div');
         faq.innerHTML = snippets.faqHtml;
         body.append(faq);
-    }
-    if (snippets.referencesHtml) {
-        const refs = doc.createElement('div');
-        refs.innerHTML = snippets.referencesHtml;
-        body.append(refs);
     }
     return body.innerHTML;
 };
@@ -252,44 +248,17 @@ export const postProcessGeneratedHtml = (html: string, plan: GeneratedContent, y
 
 export const processInternalLinks = (content: string, availablePages: SitemapPage[]): string => {
     let processedContent = content;
-    const candidates = availablePages.filter(p => p.id && p.title && p.title.length > 3).slice(0, 50);
+    // Limit to top 50 pages for performance
+    const candidates = availablePages.filter(p => p.id && p.title && p.title.length > 3).slice(0, 50); 
     let linkCount = 0;
-    const MAX_LINKS = 12;
 
     processedContent = processedContent.replace(/\[LINK_CANDIDATE:\s*([^\]]+)\]/gi, (match, keyword) => {
-        if (linkCount >= MAX_LINKS) {
-            return keyword;
-        }
-
-        const cleanKeyword = keyword.trim().toLowerCase();
-
-        let target = candidates.find(p => p.title.toLowerCase() === cleanKeyword);
-
-        if (!target) {
-            target = candidates.find(p => {
-                const title = p.title.toLowerCase();
-                const keywordWords = cleanKeyword.split(/\s+/);
-                const titleWords = title.split(/\s+/);
-
-                if (keywordWords.length < 2) return false;
-
-                const matchingWords = keywordWords.filter(kw =>
-                    titleWords.some(tw => tw.includes(kw) || kw.includes(tw))
-                );
-                const matchScore = matchingWords.length / keywordWords.length;
-
-                return matchScore >= 0.6;
-            });
-        }
-
-        if (target && target.title && target.id) {
-            const anchorText = target.title;
+        const target = availablePages.find(p => p.title.toLowerCase() === keyword.toLowerCase());
+        if (target) {
             linkCount++;
-            return `<a href="${target.id}" class="internal-link" title="${target.title}">${anchorText}</a>`;
+            return `<a href="${target.id}" class="internal-link" title="${target.title}">${keyword}</a>`;
         }
-
         return keyword;
     });
-
     return processedContent;
 };

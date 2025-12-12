@@ -15,6 +15,7 @@ export const XIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
 );
 
+// ... (Keep existing Icons and SidebarNav) ...
 const SetupIcon = () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="nav-icon"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>;
 const StrategyIcon = () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="nav-icon"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>;
 const ReviewIcon = () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="nav-icon"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>;
@@ -109,6 +110,7 @@ const ScoreGauge = ({ score, size = 80 }: { score: number; size?: number }) => {
     );
 };
 
+// ... (Keep RankGuardian) ...
 interface RankGuardianProps {
     item: ContentItem;
     editedSeo: { title: string; metaDescription: string; slug: string };
@@ -302,6 +304,71 @@ export const RankGuardian = memo(({ item, editedSeo, editedContent, onSeoChange,
     );
 });
 
+// SOTA Money Panel Component
+export const MoneyPanel = ({ pages, onExecute }: { pages: SitemapPage[], onExecute: (p: SitemapPage) => void }) => {
+    // Sort by Opportunity Score (Highest First)
+    const opportunities = useMemo(() => {
+        return [...pages]
+            .filter(p => (p.opportunityScore || 0) > 20)
+            .sort((a, b) => (b.opportunityScore || 0) - (a.opportunityScore || 0))
+            .slice(0, 10);
+    }, [pages]);
+
+    return (
+        <div className="guardian-card full-width" style={{marginTop: '2rem', border: '1px solid #10B981'}}>
+            <h3 style={{color: '#10B981'}}>💰 MONEY PANEL: High Leverage Opportunities</h3>
+            <p style={{fontSize: '0.85rem', color: '#94A3B8', marginTop: '-1rem', marginBottom: '1.5rem'}}>
+                These pages have high "striking distance" potential or commercial intent. SOTA Agent recommends immediate action.
+            </p>
+            {opportunities.length === 0 ? (
+                <div style={{padding: '2rem', textAlign: 'center', color: '#64748B'}}>
+                    No high-opportunity pages detected yet. Crawl sitemap to analyze potential.
+                </div>
+            ) : (
+                <table className="content-hub-table">
+                    <thead>
+                        <tr>
+                            <th>Target Page</th>
+                            <th>Potential</th>
+                            <th>Simulated GSC</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {opportunities.map(p => (
+                            <tr key={p.id}>
+                                <td>
+                                    <div style={{fontWeight: 700, color: 'white'}}>{p.title}</div>
+                                    <div style={{fontSize: '0.75rem', color: '#64748B'}}>{p.slug}</div>
+                                </td>
+                                <td>
+                                    <span className="badge" style={{
+                                        background: p.opportunityScore! > 80 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+                                        color: p.opportunityScore! > 80 ? '#10B981' : '#F59E0B'
+                                    }}>
+                                        {p.opportunityScore}/100
+                                    </span>
+                                </td>
+                                <td>
+                                    <div style={{fontSize: '0.8rem', color: '#94A3B8'}}>
+                                        <div>Pos: <strong style={{color:'white'}}>{p.gscSimulated?.position}</strong></div>
+                                        <div>Impr: {p.gscSimulated?.impressions}</div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <button className="btn btn-small" onClick={() => onExecute(p)} style={{background: '#10B981', color: '#064E3B'}}>
+                                        Execute God Mode
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            )}
+        </div>
+    );
+};
+
 export const SkeletonLoader = ({ rows = 5, columns = 5 }: { rows?: number, columns?: number }) => (
     <>
         {Array.from({ length: rows }).map((_, i) => (
@@ -373,7 +440,6 @@ export const ReviewModal = ({ item, onClose, onSaveChanges, wpConfig, wpPassword
             ['clean']
         ],
         clipboard: {
-            // Keep formatting when pasting
             matchVisual: false
         }
     }), []);
@@ -426,6 +492,7 @@ export const ReviewModal = ({ item, onClose, onSaveChanges, wpConfig, wpPassword
 
     const TABS = ['Live Preview', 'Editor', 'Raw HTML', 'Assets', 'Rank Guardian', 'Raw JSON'];
     if (item.generatedContent?.neuronAnalysis || neuronConfig?.enabled) TABS.splice(3, 0, 'Neuron NLP');
+    if (item.generatedContent?.verificationReport) TABS.splice(4, 0, 'Fact Check');
 
     const neuronAnalysisView = useMemo(() => {
         const na = item.generatedContent?.neuronAnalysis?.terms_txt;
@@ -505,6 +572,23 @@ export const ReviewModal = ({ item, onClose, onSaveChanges, wpConfig, wpPassword
                                         <div style={{padding: '1rem'}}><p style={{color: '#94A3B8', fontSize: '0.8rem'}}>{image.prompt}</p></div>
                                     </div>
                                 ))}
+                            </div>
+                        </div>
+                    )}
+                    {activeTab === 'Fact Check' && (
+                        <div className="rank-guardian-container">
+                            <div className="guardian-grid">
+                                {item.generatedContent.verificationReport ? item.generatedContent.verificationReport.map((v, i) => (
+                                    <div key={i} className="guardian-card full-width" style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                                        <div>
+                                            <h5 style={{color:'white', margin:0}}>Claim: "{v.claim}"</h5>
+                                            <p style={{color:'#94A3B8', fontSize:'0.8rem', margin:0}}>Source: {v.source || 'N/A'}</p>
+                                        </div>
+                                        <div className={`badge ${v.status === 'Verified' ? 'pillar' : 'standard'}`} style={{background: v.status === 'Verified' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)', color: v.status === 'Verified' ? '#10B981' : '#EF4444'}}>
+                                            {v.status}
+                                        </div>
+                                    </div>
+                                )) : <div style={{color:'#64748B'}}>No verification data available.</div>}
                             </div>
                         </div>
                     )}

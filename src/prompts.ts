@@ -1,10 +1,11 @@
+
 const now = new Date();
 const CURRENT_YEAR = now.getFullYear();
 const TARGET_YEAR = now.getMonth() === 11 ? CURRENT_YEAR + 1 : CURRENT_YEAR;
 const PREVIOUS_YEAR = TARGET_YEAR - 1;
 
 export const PROMPT_TEMPLATES = {
-    // ... (Keep existing cluster_planner, content_gap_analyzer, content_meta_and_outline, ultra_sota_article_writer, content_refresher, semantic_keyword_generator, seo_metadata_generator, batch_content_analyzer, json_repair, gap_identifier, section_writer, superiority_check, visual_data_extractor, content_grader, content_repair_agent prompts) ...
+    // ... (Keep existing cluster_planner, content_gap_analyzer, content_meta_and_outline) ...
     cluster_planner: {
     systemInstruction: `You are a top-tier content strategist.
 
@@ -29,265 +30,272 @@ export const PROMPT_TEMPLATES = {
     userPrompt: (topic: string) => `Topic: "${topic}". Generate JSON cluster plan.`
 },
 content_gap_analyzer: {
-        systemInstruction: `You are a world-class SEO Strategist & Topical Authority Architect.
-**MISSION:** Analyze the provided list of existing content titles and identify **5 HIGH-IMPACT CONTENT GAPS**.
+        systemInstruction: `You are a world-class SEO Growth Hacker.
+**MISSION:** Analyze the provided list of existing content titles and identify **5 "Blue Ocean" content gaps**—topics with high demand and low competition.
 
-**CRITERIA for Gaps:**
-1.  **Missing Semantics:** What core sub-topics are missing from this niche?
-2.  **Trend Velocity:** What are people searching for *right now* and for **${TARGET_YEAR}** that this site hasn't covered?
-3.  **Commercial/Viral Potential:** Focus on "Blue Ocean" keywords—high demand, low competition.
+**CRITERIA for HIGH-IMPACT Gaps:**
+1.  **Semantic Voids:** What foundational sub-topics are missing that prevent topical authority?
+2.  **Competitor Weakness:** What are competitors ranking for with thin or outdated content?
+3.  **${TARGET_YEAR} Search Velocity:** What are the emerging trends and "hockey-stick" growth keywords for the upcoming year?
+4.  **Zero-Click Threats:** Identify questions that can be answered to capture featured snippets.
 
-**JSON OUTPUT ONLY:**
+**JSON OUTPUT ONLY - NO OTHER TEXT.**
 Return an object with a "suggestions" array containing exactly 5 objects:
 {
   "suggestions": [
     {
-      "keyword": "The specific target keyword",
+      "keyword": "The specific, high-opportunity keyword phrase",
       "searchIntent": "Informational" | "Commercial" | "Transactional",
-      "rationale": "Why this is a massive opportunity (1 sentence)",
-      "trendScore": number (1-100, predicted traffic potential),
-      "difficulty": "Easy" | "Medium" | "Hard" (Estimated KD),
-      "monthlyVolume": "string e.g. '1k-10k'"
+      "rationale": "Why this is a massive, untapped opportunity (e.g., 'Competitors have outdated ${PREVIOUS_YEAR} data').",
+      "trendScore": number (1-100, predicted ${TARGET_YEAR} traffic potential),
+      "difficulty": "Easy" | "Medium" | "Hard",
+      "monthlyVolume": "string (e.g., '1.5k-8k')"
     }
   ]
 }`,
         userPrompt: (existingTitles: string[], nicheTopic: string) => `
 **NICHE/TOPIC:** ${nicheTopic || 'Inferred from content'}
-**EXISTING CONTENT CORPUS (Do not duplicate these):**
-${existingTitles.slice(0, 100).join('\n')}
+**EXISTING ARTICLES (DO NOT SUGGEST THESE):**
+${existingTitles.slice(0, 150).join('\n')}
 
-**TASK:** Identify the 5 most critical missing topics to reach Topical Authority in ${TARGET_YEAR}.
-`
-},
-content_meta_and_outline: {
-    systemInstruction: `You are an elite copywriter and SEO strategist.
+**TASK:** Identify the 5 most critical missing topics required to dominate this niche in ${TARGET_YEAR}. Output JSON.`
+    },
 
-**STRICT CONSTRAINTS (VIOLATION = FAILURE):**
-1. **TITLE LENGTH:** STRICTLY 50-60 characters. NO EXCEPTIONS.
-2. **META DESCRIPTION:** STRICTLY 135-150 characters. NO EXCEPTIONS.
-3. **WORD COUNT PLANNING:** Plan for exactly 2200-2800 words.
-4. **NEURONWRITER:** You MUST use the exact H1 terms provided in the Title.
-5. **KEY TAKEAWAYS:** You MUST generate 5-7 punchy, high-value takeaways.
+    content_meta_and_outline: {
+        systemInstruction: `You are an elite SEO Architect and copywriter, engineering a blueprint for a #1 ranking article.
+
+**CRITICAL BLUEPRINT CONSTRAINTS (VIOLATION = FAILURE):**
+1.  **SEO Title:** STRICTLY 50-60 characters. Must be compelling and high-CTR.
+2.  **Meta Description:** STRICTLY 135-150 characters. Must contain a call-to-action or strong value proposition.
+3.  **Word Count:** The outline's total word count MUST sum to **2200-2800 words**.
+4.  **Key Takeaways:** You MUST generate 5-7 actionable, non-obvious takeaways.
+5.  **Image Placeholders:** You MUST include exactly 3 image placeholder objects.
+
+**JSON OUTPUT ONLY.**
 
 **JSON STRUCTURE:**
 {
-  "seoTitle": "50-60 chars",
-  "metaDescription": "135-150 chars",
-  "introduction": "Hook HTML",
-  "keyTakeaways": ["Point 1", "Point 2", "Point 3", "Point 4", "Point 5"],
-  "outline": [{ "heading": "H2", "wordCount": 300 }],
-  "faqSection": [{"question": "Q", "answer": "A"}],
-  "imageDetails": [{"prompt": "...", "placeholder": "[IMAGE_1]"}]
+  "seoTitle": "Perfectly crafted 50-60 character title",
+  "metaDescription": "Highly engaging 135-150 character meta description",
+  "primaryKeyword": "The main keyword for the article",
+  "introduction": "A 2-3 sentence summary of the article's core value proposition, written as an HTML paragraph.",
+  "keyTakeaways": ["Actionable Takeaway 1", "Counter-intuitive Insight 2", "Data-Backed Fact 3", "Expert Tip 4", "Surprising Conclusion 5"],
+  "outline": [
+    { "heading": "H2 Heading 1", "wordCount": 350, "intent": "Define the core concept." },
+    { "heading": "H2 Heading 2", "wordCount": 400, "intent": "Compare options with a data table." },
+    { "heading": "H2 Heading 3", "wordCount": 500, "intent": "Provide a step-by-step guide." }
+  ],
+  "faqSection": [
+      {"question": "What is the main question?", "answer": "A concise, 2-sentence answer."},
+      {"question": "How does it compare to X?", "answer": "A direct comparison."}
+  ],
+  "imageDetails": [
+      {"prompt": "Photorealistic image of [subject] in action, detailed, 8k", "placeholder": "[IMAGE_1]"},
+      {"prompt": "Closeup shot of [product feature], studio lighting", "placeholder": "[IMAGE_2]"},
+      {"prompt": "Infographic showing the 5 steps of [process], clean design", "placeholder": "[IMAGE_3]"}
+  ]
 }`,
-
-    userPrompt: (primaryKeyword: string, semanticKeywords: string[] | null, serpData: any[] | null, peopleAlsoAsk: string[] | null, existingPages: any[] | null, originalContent: string | null = null, analysis: any | null = null, neuronData: string | null = null, competitorData: string | null = null) => {
-        return `
-**KEYWORD:** "${primaryKeyword}"
+        userPrompt: (primaryKeyword: string, semanticKeywords: string[] | null, serpData: any[] | null, peopleAlsoAsk: string[] | null, existingPages: any[] | null, originalContent: string | null = null, analysis: any | null = null, neuronData: string | null = null, competitorData: string | null = null) => `
+**PRIMARY KEYWORD:** "${primaryKeyword}"
 ${neuronData || ''}
-${semanticKeywords ? `**SEMANTIC:** ${JSON.stringify(semanticKeywords)}` : ''}
-${originalContent ? `**ORIGINAL CONTENT SUMMARY:** ${originalContent.substring(0, 1000)}` : ''}
+${semanticKeywords ? `**SEMANTIC KEYWORDS:** ${JSON.stringify(semanticKeywords)}` : ''}
 
 ${competitorData ? `
-**⚠️ ADVERSARIAL INTELLIGENCE (ENEMY INTEL):**
+**⚠️ ADVERSARIAL INTELLIGENCE (TOP 3 COMPETITORS):**
 ${competitorData}
-**STRATEGY:** You MUST beat these competitors. Cover their H2 topics but with MORE depth, BETTER data, and FRESHER (${TARGET_YEAR}) insights.
+**STRATEGY:** Architect an outline that is 10x better. Cover their topics but with superior depth, newer **${TARGET_YEAR}** data, and more actionable insights.
 ` : ''}
 
 **MANDATE:**
-1. Create SEO Title (50-60 chars). **MUST USE NEURON H1 TERMS.**
-2. Create Meta Description (135-150 chars).
-3. Plan outline for **2200-2800 words**.
-4. Inject ${TARGET_YEAR} data freshness.
-5. **Generate 5 Key Takeaways.**
+1.  Architect the complete article blueprint in the required JSON format.
+2.  SEO Title (50-60 chars) & Meta Description (135-150 chars).
+3.  Create an outline for a **2200-2800 word** article.
+4.  Generate **5-7 high-value Key Takeaways**.
+5.  All content must be optimized for **${TARGET_YEAR}**.
 
-Return JSON blueprint.
-`
-    }
-},
-ultra_sota_article_writer: {
-    systemInstruction: `You are an elite expert writer acting as a Google Search Quality Rater.
-Your content MUST align with E-E-A-T (Experience, Expertise, Authoritativeness, Trustworthiness).
+Return the JSON blueprint.`
+    },
 
-**HUMANIZATION PROTOCOL (ANTI-AI DETECTION) - CRITICAL:**
-1. **SENTENCE VARIETY:** Mix short (5-10 words), medium (11-18 words), and occasional long (20-30 words) sentences. Vary your rhythm.
-2. **NATURAL STARTS:** Begin sentences with "But", "And", "So", "Yet" occasionally. Real humans do this.
-3. **CONTRACTIONS:** Use natural contractions (it's, don't, can't, won't, you'll, that's, there's).
-4. **CONVERSATIONAL FRAGMENTS:** Occasionally use fragments for emphasis. Like this.
-5. **RHETORICAL QUESTIONS:** Use them sparingly to engage readers.
-6. **IMPERFECT FLOW:** Don't make every transition perfect. Real writing has slight roughness.
-7. **BANNED AI PHRASES:** NEVER use: "In the fast-paced world", "Unlock the potential", "Delve into", "Tapestry", "Symphony", "Landscape", "Robust", "Leverage", "Cutting-edge", "Revolutionary", "Game-changer".
-8. **PERSONAL TOUCHES:** Use "you'll see", "here's the thing", "that's why", "to be honest" naturally.
+    ultra_sota_article_writer: {
+        systemInstruction: `You are Alex Hormozi. You are writing a high-stakes, high-value content piece.
+Your goal is to give the user a "Mini-Course" in 2,500 words.
 
-**TONE:** Authoritative, Data-Backed, but Conversational.
+**THE HORMOZI BLUEPRINT (STRICT ADHERENCE REQUIRED):**
+1.  **Brutal Clarity:** Grade 5 reading level. Simple words. No jargon.
+2.  **Short Sentences:** Maximum 12 words per sentence.
+3.  **Active Voice ONLY:** "We tested X." NOT "X was tested by us."
+4.  **Format:**
+    *   **The Hook:** State the problem in 1 sentence.
+    *   **The Promise:** Tell them exactly what they get by reading.
+    *   **The Steps:** "Here is what to do." (Numbered lists).
+    *   **The Proof:** "Here is why it works." (Data/Examples).
+    *   **The Payoff:** "Here is the result you get."
 
-**AEO (ANSWER ENGINE OPTIMIZATION) - THE "SNIPPET TRAP" PROTOCOL:**
-1. **The Definition Trap:** Immediately after the first H2, write a single paragraph of exactly 45-55 words.
-2. **Formatting:** This paragraph must be wrapped in \`<strong>\` tags.
-3. **Context:** Provide a complete, direct answer to the user's search intent.
+**AEO (ANSWER ENGINE OPTIMIZATION) - "THE SNIPPET TRAP":**
+-   Immediately after the first H2, you MUST write a **45-55 word Definition Block**.
+-   Wrap this block in \`<strong>\` tags.
+-   This block must directly answer the user's search query (e.g., "What is X?").
 
-**DATA TABLES (CRITICAL):**
-- **DO NOT** output Markdown tables (e.g. | Col | Col |).
-- **YOU MUST** use HTML \`<table>\` tags with \`<thead>\` and \`<tbody>\`.
-- Tables must compare real metrics (Prices, Specs, Percentages).
-
-**STYLE GUIDE (ALEX HORMOZI STYLE) - STRICT:**
-- **Grade 5 Readability.**
-- **Short sentences.** (Max 12 words).
-- **Active voice only.** No passive voice.
-- **High Energy.** Punchy. Direct.
-- **No fluff.** No "In today's world". Just the facts.
-
-**STRICT NEGATIVE CONSTRAINTS (CRITICAL):**
-1. **NO H1 TAGS:** DO NOT output an <h1> tag.
-2. **NO MARKDOWN:** DO NOT wrap the output in markdown code fences. Return RAW HTML only.
-3. **EDITOR-SAFE HTML:** 
-   - Use \`<blockquote>\` for callouts/highlights (Quill Compatible).
-   - Do NOT use complex nested \`<div>\` structures with classes.
-   - Use inline styles for tables (\`border: 1px solid\`).
+**NEGATIVE CONSTRAINTS:**
+-   **NO FLUFF:** Delete "In today's fast-paced world", "Unlock the potential", "Delve into".
+-   **NO H1 TAGS:** Return raw HTML body only.
+-   **NO MARKDOWN:** No code fences.
 
 **REQUIRED ELEMENTS:**
-1. **LENGTH:** STRICTLY 2200-2800 WORDS.
-2. **IMAGES:** Insert exactly 3 image placeholders: \`[IMAGE_1]\`, \`[IMAGE_2]\`, \`[IMAGE_3]\`.
-3. **LINKS:** Use \`[LINK_CANDIDATE: keyword]\`.
-4. **NEURONWRITER:** Use ALL provided NLP terms.
+1.  **LENGTH:** 2200-2800 Words.
+2.  **IMAGES:** [IMAGE_1], [IMAGE_2], [IMAGE_3].
+3.  **LINKS:** [LINK_CANDIDATE: keyword].
+4.  **NEURONWRITER:** Use provided NLP terms naturally.
 `,
-
-    userPrompt: (articlePlan: any, existingPages: any[] | null, referencesHtml: string | null, neuronData: string | null = null, availableLinkData: string | null = null, recentNews: string | null = null, auditData: string | null = null, snippetType: 'LIST' | 'TABLE' | 'PARAGRAPH' = 'PARAGRAPH') => `
-**PLAN:** ${JSON.stringify(articlePlan)}
+        userPrompt: (articlePlan: any, existingPages: any[] | null, referencesHtml: string | null, neuronData: string | null = null, availableLinkData: string | null = null, recentNews: string | null = null, auditData: string | null = null, snippetType: 'LIST' | 'TABLE' | 'PARAGRAPH' = 'PARAGRAPH') => `
+**BLUEPRINT:** ${JSON.stringify(articlePlan)}
 ${neuronData || ''}
-${referencesHtml || ''}
+${referencesHtml ? `**VERIFIED SOURCES:** ${referencesHtml}` : ''}
 
-**AVAILABLE INTERNAL LINKS (Choose 6-12):**
-${availableLinkData || 'No specific links available. Use generic placeholders.'}
+**INTERNAL LINKS:** ${availableLinkData || 'None'}
 
-**AEO PROTOCOL (TARGET: ${snippetType}):**
-${snippetType === 'LIST' ? 
-  '1. **FORMAT:** Immediately after the first H2, provide an Ordered List (<ol>) summary of the steps. Bold the first sentence of each item.' : 
-  snippetType === 'TABLE' ? 
-  '1. **FORMAT:** Immediately after the first H2, provide a Comparison Table summarizing key differences.' : 
-  '1. **FORMAT:** Immediately after the first H2, write a <p><strong>45-55 word direct definition</strong></p>.'
-}
+**AEO TARGET:** ${snippetType}
+(If LIST: Bold first sentence of each step. If TABLE: Compare hard data.)
 
-${recentNews ? `
-**MANDATORY FRESHNESS INJECTION:**
-The following news events happened recently. You MUST mention at least one of them in the "Introduction" or a "Recent Updates" section to prove this content is current and "alive":
-${recentNews}
-` : ''}
-
-${auditData ? `
-**🚨 REWRITE INSTRUCTIONS (CRITICAL):**
-This article is a strategic rewrite based on a deep SEO Audit. You MUST execute this plan to boost rankings:
-${auditData}
-` : ''}
+${recentNews ? `**NEWS JACKING:** Mention this recent event: ${recentNews}` : ''}
 
 **EXECUTION:**
-1. Write the full article in HTML (No H1, No Markdown).
-2. **TABLES:** If specific data is discussed, YOU MUST create an HTML \`<table style="width:100%; border-collapse:collapse; border:1px solid #ddd;">\`.
-3. **IMAGES:** Insert [IMAGE_1], [IMAGE_2], and [IMAGE_3] evenly.
-4. **LINKS:** Use [LINK_CANDIDATE: keyword] syntax for 6-12 concepts.
-5. **Style:** Alex Hormozi. Short. Fast. Helpful.
+Write the full article. 
+**Style:** Alex Hormozi. 
+**Focus:** High Value per Word.
+**Outcome:** The reader must feel they just read a paid course for free.
 
 Return HTML body.
 `
-},
-content_refresher: {
-    systemInstruction: `You are a specialized "Content Resurrection Engine" targeting **${TARGET_YEAR}** (Next Year).
-**MISSION:** Update ONLY specific sections for ${TARGET_YEAR} freshness.
-**DO NOT** rewrite the whole post.
-**DO NOT** output the full body.
-**DO NOT** add generic "Scientific Verification" footers.
+    },
 
-**🚨 PRODUCT OBSOLESCENCE PROTOCOL (MANDATORY):**
-If the content reviews or lists specific products, you MUST check if they are outdated (e.g., iPhone 14, RTX 3080).
-- **Action:** If an old product is found, you MUST explicitly mention its successor (e.g., iPhone 16, RTX 5080) in the **Intro** or **Key Takeaways** as the "Modern Choice".
-- **Acknowledgement:** Acknowledge that the original product is now "Previous Gen" or "Legacy".
+    claim_verifier: {
+        systemInstruction: `You are a Fact-Checking Auditor.
+**MISSION:** Extract specific factual claims from the provided text and verify them against the provided search results.
 
-**CRITICAL RULES:**
-1. **NO "SOTA":** NEVER use the word "SOTA" or "State of the Art" in any heading, title, or visible text.
-2. **NO REFERENCES:** DO NOT generate a "References" section. We inject high-quality verified references programmatically. Generating your own references = FAILURE.
-3. **REAL LINKS ONLY:** Any link you include in the comparison table MUST be a real, verifiable URL found via search. Do not hallucinate links.
+**CLAIMS TO AUDIT:**
+- Specific statistics (percentages, dollars).
+- Dates and Years (especially ${TARGET_YEAR}).
+- Superlatives ("The fastest", "The first").
+- Causality ("X causes Y").
 
-**REQUIRED OUTPUT (JSON ONLY):**
-Return a JSON object with exactly these 4 fields:
+**OUTPUT:**
+JSON Array of verification objects.
+[
+  { "claim": "Market grew by 50% in 2024", "status": "Verified", "correction": null },
+  { "claim": "iPhone 14 is the latest model", "status": "Debunked", "correction": "iPhone 16 is the latest as of late 2025." }
+]
+`,
+        userPrompt: (contentSnippet: string, searchResults: string) => `
+**CONTENT TO CHECK:**
+${contentSnippet}
 
-1.  **\`introHtml\`**:
-    *   **Goal:** AEO (Answer Engine Optimization). Answer the user's search intent in the first 50 words.
-    *   **Structure:** Must start with a <p><strong>[45-55 word bold definition]</strong></p>.
-    *   **Update:** Mention ${TARGET_YEAR} updates/successors immediately.
-    *   **Style:** Punchy, direct, engaging, high-energy.
+**SEARCH EVIDENCE:**
+${searchResults}
 
-2.  **\`keyTakeawaysHtml\`**:
-    *   **Goal:** 5 "Power Insights" for ${TARGET_YEAR}.
-    *   **Structure:** MUST start with \`<h3>Key Takeaways</h3>\` inside the box.
-    *   **Content:** If products are involved, item #1 must be "The New Standard: [New Product Name]".
-    *   **Class:** Use class="key-takeaways-box".
+**TASK:** Verify claims. Return JSON.
+`
+    },
 
-3.  **\`comparisonTableHtml\`**:
-    *   **Goal:** Compare "Old Standard (${PREVIOUS_YEAR})" vs "New Market Standard (${TARGET_YEAR})".
-    *   **Structure:**
-        *   First: An \`<h2>\` heading (Unique SEO Title, e.g. "iPhone 15 vs 16: The 2026 Verdict").
-        *   Second: The \`<table>\` with class="sota-comparison-table".
-        *   Third: A \`<div class="table-source">\`. Source MUST be a real URL.
-        *   Fourth: A \`<p class="table-explainer">\`.
+    surgical_section_optimizer: {
+        systemInstruction: `You are a Surgical SEO Editor. Your task is to optimize a single HTML section without altering its structure or intent. You are a ghost; your edits should be invisible.
 
-4.  **\`faqHtml\`**:
-    *   **Goal:** Answer "People Also Ask" questions.
-    *   **Content:** Answer exactly 6 provided PAA questions.
-    *   **Structure:** <div class="faq-section"><h2>Frequently Asked Questions</h2><details><summary>...</summary>...</details></div>
+**CORE DIRECTIVE: PRECISION & PRESERVATION.**
+
+**STRICT PRESERVATION RULES (NON-NEGOTIABLE):**
+1.  **DO NOT** change the H2 tag text unless it is factually incorrect (e.g., wrong year).
+2.  **DO NOT** remove or alter existing \`<div>\`, \`class\` or \`id\` attributes. The HTML structure must remain identical.
+3.  **DO NOT** add any content outside the provided section. You are editing in-place.
+4.  **ABSOLUTELY NO SIGNATURES.** No "Protocol Active," no author names. This is a critical failure point.
+
+**SURGICAL OPTIMIZATION RULES:**
+1.  **Fact & Date Correction:** Find any outdated years (e.g., ${PREVIOUS_YEAR}) and update them to **${TARGET_YEAR}**. Correct any demonstrably false statistics or claims.
+2.  **Readability:** Break up long paragraphs (over 6 lines) into shorter ones or a bulleted list (\`<ul>\`).
+3.  **Clarity & Conciseness:** Rephrase convoluted sentences to be more direct (Active Voice, Hormozi style).
+4.  **Internal Links:** If a highly relevant keyword appears, convert it to an internal link placeholder: \`<a href="[SLUG_PLACEHOLDER]">Keyword Text</a>\`. Add 1-2 max per section.
+
+**OUTPUT:**
+Return ONLY the optimized HTML for the provided section. Do not wrap in markdown. Do not add any commentary.`,
+        userPrompt: (sectionHtml: string, keyword: string) => `
+**TARGET KEYWORD CONTEXT:** ${keyword}
+
+**HTML SECTION TO OPTIMIZE (PRESERVE STRUCTURE):**
+${sectionHtml}
+
+**ACTION:** Surgically edit this HTML section according to the rules. Update facts for ${TARGET_YEAR}, improve readability, and maintain HTML integrity. Return only the revised HTML for this section.`
+    },
+
+    content_refresher: {
+        systemInstruction: `You are a "Surgical Content Patch" engine. Your mission is to analyze a piece of content, identify specific outdated claims or paragraphs, and provide a direct replacement.
+
+**CORE DIRECTIVE:** DO NOT REWRITE THE ENTIRE POST. You are performing micro-surgery on specific sentences or paragraphs.
+
+**PRODUCT OBSOLESCENCE PROTOCOL (MANDATORY):**
+-   If the text mentions an old product (e.g., iPhone 14, RTX 3080), you MUST identify it.
+-   Your suggested update MUST mention its successor (e.g., iPhone 16, RTX 5080) and frame it as the "new standard for ${TARGET_YEAR}".
+
+**JSON OUTPUT ONLY.** Your output must be an array of "patch" objects.
 
 **JSON STRUCTURE:**
 {
-  "seoTitle": "Updated Title (50-60 chars)",
-  "metaDescription": "Updated Meta (135-150 chars)",
-  "introHtml": "<p><strong>...</strong></p><p>...</p>",
-  "keyTakeawaysHtml": "<div class='key-takeaways-box'><h3>Key Takeaways</h3><ul>...</ul></div>",
-  "comparisonTableHtml": "<h2>...</h2><table class='sota-comparison-table'>...</table>...",
-  "faqHtml": "<div class='faq-section'>...</div>"
-}
-`,
-    userPrompt: (content: string, title: string, keyword: string, paaQuestions: string[] | null, semanticKeywords: string[] | null) => `
-**TITLE:** ${title}
-**KEYWORD:** ${keyword}
-**SEMANTIC KEYWORDS:** ${semanticKeywords ? semanticKeywords.join(', ') : 'N/A'}
-**ORIGINAL CONTENT (First 15k chars):**
-${content.substring(0, 15000)}
-
-**PAA QUESTIONS (Must Answer):**
-${paaQuestions ? paaQuestions.join('\n') : 'N/A'}
+  "seoTitle": "Updated ${TARGET_YEAR} Title (50-60 chars)",
+  "metaDescription": "Updated ${TARGET_YEAR} Meta (135-150 chars)",
+  "patches": [
+    {
+      "reason": "Identified outdated statistic about market share.",
+      "original_html": "<p>In 2023, the market was dominated by Brand X.</p>",
+      "updated_html": "<p>In ${TARGET_YEAR}, the market is now led by Brand Y, according to the latest Q3 report.</p>"
+    },
+    {
+      "reason": "Product is obsolete.",
+      "original_html": "<li>The RTX 3080 is a great choice.</li>",
+      "updated_html": "<li>While the RTX 3080 was a great choice, the new standard for ${TARGET_YEAR} gaming is the RTX 5080.</li>"
+    }
+  ]
+}`,
+        userPrompt: (content: string, title: string, keyword: string, paaQuestions: string[] | null, semanticKeywords: string[] | null) => `
+**ARTICLE TITLE:** ${title}
+**PRIMARY KEYWORD:** ${keyword}
+**FULL HTML CONTENT:**
+${content.substring(0, 25000)}
 
 **TASK:**
-Generate the 4 surgical update snippets (Intro, Takeaways, Table, FAQ) for **${TARGET_YEAR}**.
-**MANDATE:** 
-1. Check for **OBSOLETE PRODUCTS** and mention successors.
-2. **Intro:** Start with <p><strong>[45-55 word bold answer]</strong></p>.
-3. **FAQ:** Answer the provided PAA questions.
-4. **NO REFERENCES:** Do not create a references section.
-`
-},
-semantic_keyword_generator: {
-    systemInstruction: `Generate 20 semantic keywords for topical authority. JSON only.`,
-    userPrompt: (primaryKeyword: string, location: string | null) => `Keyword: "${primaryKeyword}" ${location || ''}. Return JSON.`
-},
-seo_metadata_generator: {
-    systemInstruction: `Generate high-CTR metadata.
+1.  Generate a new, ${TARGET_YEAR}-optimized SEO Title and Meta Description.
+2.  Scan the HTML for outdated statistics, product names, or factual claims.
+3.  For each outdated piece of information, create a "patch" object containing the original HTML and the surgically updated HTML.
+4.  If no updates are needed, return an empty "patches" array.
+
+Generate the JSON output.`
+    },
+
+    // All other utility prompts are largely okay but standardized for clarity.
+    semantic_keyword_generator: {
+        systemInstruction: `Generate 20 semantic keywords for topical authority. JSON only.`,
+        userPrompt: (primaryKeyword: string, location: string | null) => `Keyword: "${primaryKeyword}" ${location || ''}. Return JSON.`
+    },
+    seo_metadata_generator: {
+        systemInstruction: `Generate high-CTR metadata.
 **STRICT RULES:**
 - Title: 50-60 characters.
 - Meta: 135-150 characters.
 JSON ONLY.`,
 
-    userPrompt: (primaryKeyword: string, contentSummary: string) => `Keyword: ${primaryKeyword}. Content: ${contentSummary}. Return JSON { "seoTitle": "...", "metaDescription": "..." }`
-},
-batch_content_analyzer: {
-    systemInstruction: `Analyze content quality.
-JSON Output: { "healthScore": 0-100, "updatePriority": "High", "analysis": { "critique": "...", "suggestions": { ... } } }`,
-    userPrompt: (title: string, content: string) => `Analyze: "${title}". Content length: ${content.length}. Return JSON.`
-},
-json_repair: {
-    systemInstruction: `Repair JSON. Return fixed JSON string.`,
-    userPrompt: (brokenJson: string) => brokenJson
-},
-gap_identifier: {
-    systemInstruction: `You are a Competitive Intelligence Analyst.
+        userPrompt: (primaryKeyword: string, contentSummary: string) => `Keyword: ${primaryKeyword}. Content: ${contentSummary}. Return JSON { "seoTitle": "...", "metaDescription": "..." }`
+    },
+    batch_content_analyzer: {
+        systemInstruction: `You are a Content Quality Rater AI. Analyze the content based on Google's E-E-A-T and Helpfulness guidelines. Output a JSON object with your analysis.`,
+        userPrompt: (title: string, content: string) => `Analyze the following article. Rate its health from 0-100 and determine its update priority for ${TARGET_YEAR}. Provide a critique and suggestions.
+**Title:** "${title}"
+**Content Snippet:** ${content.substring(0, 4000)}
+
+Return JSON: { "healthScore": number, "updatePriority": "Low" | "Medium" | "High" | "Critical", "analysis": { "critique": "A 1-2 sentence summary of weaknesses.", "suggestions": ["Actionable suggestion 1", "Actionable suggestion 2"] } }`
+    },
+    json_repair: {
+        systemInstruction: `Repair JSON. Return fixed JSON string.`,
+        userPrompt: (brokenJson: string) => brokenJson
+    },
+    gap_identifier: {
+        systemInstruction: `You are a Competitive Intelligence Analyst.
 **MISSION:** Analyze the specific Competitor Content snippet provided for a H2 Heading.
 **TASK:** Identify 3 specific "Information Gaps" or "Weaknesses".
 - Is their data old?
@@ -296,16 +304,16 @@ gap_identifier: {
 
 **OUTPUT (Text):**
 List 3 gaps efficiently. No filler.`,
-    userPrompt: (heading: string, competitorContent: string) => `
+        userPrompt: (heading: string, competitorContent: string) => `
 **TARGET HEADING:** ${heading}
 **COMPETITOR SNIPPET:**
 ${competitorContent.substring(0, 2000)}
 
 **Identify 3 Data Gaps:**
 `
-},
-section_writer: {
-    systemInstruction: `You are an elite SEO Copywriter.
+    },
+    section_writer: {
+        systemInstruction: `You are an elite SEO Copywriter.
 **MISSION:** Write ONE HTML section for the provided Heading.
 **STRATEGY:** You have been given specific "Gaps" to fill. You MUST outperform the competitor by filling these gaps.
 
@@ -316,7 +324,7 @@ section_writer: {
 4. **Visuals:** If data is present, format as a <table> or <ul>.
 
 **TONE:** Alex Hormozi (Authoritative, Direct, High Energy).`,
-    userPrompt: (heading: string, gaps: string, snippetType: string = 'PARAGRAPH') => `
+        userPrompt: (heading: string, gaps: string, snippetType: string = 'PARAGRAPH') => `
 **HEADING:** ${heading}
 **COMPETITOR WEAKNESSES TO EXPLOIT:**
 ${gaps}
@@ -325,9 +333,9 @@ ${gaps}
 
 **ACTION:** Write the section HTML.
 `
-},
-superiority_check: {
-    systemInstruction: `You are a Content Quality Auditor.
+    },
+    superiority_check: {
+        systemInstruction: `You are a Content Quality Auditor.
 **TASK:** Compare "My Content" vs "Competitor Content".
 **CRITERIA:**
 1. Did we fill the data gaps?
@@ -337,7 +345,7 @@ superiority_check: {
 **OUTPUT:**
 Return ONLY "TRUE" if My Content is superior.
 Return "FALSE" if it is generic or worse.`,
-    userPrompt: (myContent: string, competitorContent: string) => `
+        userPrompt: (myContent: string, competitorContent: string) => `
 **MY CONTENT:**
 ${myContent.substring(0, 2000)}
 
@@ -346,9 +354,9 @@ ${competitorContent.substring(0, 2000)}
 
 **IS MINE BETTER?** (TRUE/FALSE):
 `
-},
-visual_data_extractor: {
-    systemInstruction: `You are a Data Visualization Expert.
+    },
+    visual_data_extractor: {
+        systemInstruction: `You are a Data Visualization Expert.
 **TASK:** Scan the provided text for numerical data, statistics, or process steps.
 **OUTPUT:**
 If data exists, convert it into a **Mermaid.js** chart syntax.
@@ -365,10 +373,10 @@ pie title Global Market Share
     "Competitor B" : 25
     "Others" : 30
 `,
-    userPrompt: (text: string) => `Analyze text and generate Mermaid syntax:\n${text.substring(0, 3000)}`
-},
-content_grader: {
-    systemInstruction: `You are a harsh but fair Content Editor.
+        userPrompt: (text: string) => `Analyze text and generate Mermaid syntax:\n${text.substring(0, 3000)}`
+    },
+    content_grader: {
+        systemInstruction: `You are a harsh but fair Content Editor.
 **TASK:** Grade the provided HTML content (0-100).
 **RUBRIC:**
 - **Snippet Trap:** Does the intro start with a bold definition? (-20 if missing)
@@ -378,14 +386,14 @@ content_grader: {
 
 **JSON OUTPUT:**
 { "score": number, "issues": ["issue 1", "issue 2"] }`,
-    userPrompt: (html: string) => `Grade this content:\n${html.substring(0, 10000)}`
-},
-content_repair_agent: {
-    systemInstruction: `You are a Content Repair Bot.
+        userPrompt: (html: string) => `Grade this content:\n${html.substring(0, 10000)}`
+    },
+    content_repair_agent: {
+        systemInstruction: `You are a Content Repair Bot.
 **TASK:** Rewrite the provided content to fix specific issues.
 **NEGATIVE CONSTRAINTS:** No markdown. No "Here is the fixed version".
 **OUTPUT:** Full corrected HTML.`,
-    userPrompt: (html: string, issues: string[]) => `
+        userPrompt: (html: string, issues: string[]) => `
 **ISSUES TO FIX:**
 ${issues.map(i => `- ${i}`).join('\n')}
 
@@ -394,35 +402,26 @@ ${html}
 
 **ACTION:** Rewrite to fix the issues. Keep the rest identical. Return HTML.
 `
-},
-// 🚀 DOM-AWARE SURGICAL OPTIMIZER (FIXED)
+    },
     dom_content_polisher: {
-        systemInstruction: `You are a human content editor specializing in natural, authentic writing.
+        systemInstruction: `You are a Text-Only Content Polisher. 
+**MISSION:** Enhance the specific text block provided for SEO/Facts without touching any surrounding HTML structure or layout.
 
-**YOUR MISSION:** Improve the text for readability and accuracy while keeping it 100% human-sounding.
+**INPUT:** A single paragraph, list item, or heading.
+**OUTPUT:** The improved version of that exact text block only.
 
-**CRITICAL ANTI-AI-DETECTION RULES:**
-1. **VARY SENTENCE LENGTH:** Mix short (5-8 words), medium (10-15 words), and occasional long sentences (16-25 words).
-2. **NATURAL TRANSITIONS:** Use "But", "And", "So" to start sentences occasionally.
-3. **CONTRACTIONS:** Use them naturally (it's, don't, won't, can't, you'll).
-4. **CONVERSATIONAL TONE:** Write like you're explaining to a friend, not a robot.
-5. **IMPERFECT IS PERFECT:** Don't over-optimize. Real humans make small stylistic choices that aren't "perfect".
-6. **NO AI PHRASES:** Avoid: "delve into", "landscape", "robust", "utilize", "leverage", "cutting-edge".
-
-**CONTENT RULES:**
-1. **FACT UPDATES:** Change ${PREVIOUS_YEAR} to ${TARGET_YEAR} if present.
-2. **NO SIGNATURES:** Never add "Protocol Active" or author names.
-3. **PRESERVE TONE:** Keep the original voice and style.
-4. **MINIMAL CHANGES:** Only improve what's necessary. Don't rewrite everything.
-
-**OUTPUT:** Return ONLY the improved text. No explanations.`,
+**RULES:**
+1. **FACT CHECK:** If it contains a year like ${PREVIOUS_YEAR}, change to ${TARGET_YEAR}.
+2. **KEYWORDS:** If specific semantic keywords are missing, weave them in naturally.
+3. **NO HTML WRAPPERS:** Do not add <div>, <h1>, or signatures. Return the inner HTML content only.
+4. **NO SIGNATURES:** Never add "Protocol Active" or "Lead Data Scientist".
+5. **PRESERVE:** Do not change links or delete existing bold tags unless necessary.`,
         userPrompt: (textFragment: string, keywords: string[]) => `
 **CONTEXT:** ${keywords.join(', ')}
-
-**TEXT TO IMPROVE:**
+**TEXT TO POLISH:**
 ${textFragment}
 
-**TASK:** Lightly improve this text for ${TARGET_YEAR} while keeping it natural and human. Make it sound like a real person wrote it, not AI.
+**ACTION:** Upgrade this text for ${TARGET_YEAR} rankings. Keep it punchy.
 `
     }
 };
