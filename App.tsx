@@ -1,3 +1,4 @@
+
 import { GoogleGenAI } from "@google/genai";
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
@@ -6,10 +7,11 @@ import { generateFullSchema, generateSchemaMarkup } from './schema-generator';
 import { PROMPT_TEMPLATES } from './prompts';
 import { AI_MODELS } from './constants';
 import { itemsReducer } from './state';
-import { callAI, generateContent, generateImageWithFallback, publishItemToWordPress, maintenanceEngine } from './services';
+import { callAI, generateContent, generateImageWithFallback, publishItemToWordPress, maintenanceEngine, godModeService } from './services';
 import { 
-    AppFooter, AnalysisModal, BulkPublishModal, ReviewModal, SidebarNav, SkeletonLoader, ApiKeyInput, CheckIcon, XIcon, WordPressEndpointInstructions
+    AppFooter, AnalysisModal, BulkPublishModal, ReviewModal, SidebarNav, SkeletonLoader, ApiKeyInput, CheckIcon, XIcon, WordPressEndpointInstructions, MoneyPanel
 } from './components';
+import { LandingPage } from './LandingPage';
 import { 
     SitemapPage, ContentItem, GeneratedContent, SiteInfo, ExpandedGeoTargeting, ApiClients, WpConfig, NeuronConfig, GapAnalysisSuggestion, GenerationContext
 } from './types';
@@ -51,7 +53,24 @@ export class SotaErrorBoundary extends React.Component<ErrorBoundaryProps, Error
 interface OptimizedLog { title: string; url: string; timestamp: string; }
 
 const App = () => {
+    // ------------------------------------------------------------------------
+    // LANDING PAGE LOGIC - MUST BE FIRST
+    // ------------------------------------------------------------------------
+    const [hasEnteredApp, setHasEnteredApp] = useState(false);
+
+    // Initialize Mermaid Early
+    useEffect(() => { 
+        if (typeof mermaid !== 'undefined' && mermaid.initialize) {
+            mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose', fontFamily: 'Inter' }); 
+        }
+    }, []);
+
+    // ------------------------------------------------------------------------
+    // APP STATE
+    // ------------------------------------------------------------------------
     const [activeView, setActiveView] = useState('setup');
+    const [strategyTab, setStrategyTab] = useState('planner'); // planner, single, gap, refresh, hub, images
+
     const [apiKeys, setApiKeys] = useState(() => {
         const saved = localStorage.getItem('apiKeys');
         const defaults = { openaiApiKey: '', anthropicApiKey: '', openrouterApiKey: '', serperApiKey: '', groqApiKey: '' };
@@ -126,8 +145,7 @@ const App = () => {
     const [hubPage, setHubPage] = useState(1);
     const ITEMS_PER_PAGE = 20;
 
-    useEffect(() => { mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose', fontFamily: 'Inter' }); }, []);
-    useEffect(() => { if (selectedItemForReview?.generatedContent) setTimeout(() => { mermaid.run({ nodes: document.querySelectorAll('.mermaid') as any }); }, 500); }, [selectedItemForReview]);
+    useEffect(() => { if (selectedItemForReview?.generatedContent && typeof mermaid !== 'undefined') setTimeout(() => { mermaid.run({ nodes: document.querySelectorAll('.mermaid') as any }); }, 500); }, [selectedItemForReview]);
     useEffect(() => { localStorage.setItem('apiKeys', JSON.stringify(apiKeys)); }, [apiKeys]);
     useEffect(() => { localStorage.setItem('selectedModel', selectedModel); }, [selectedModel]);
     useEffect(() => { localStorage.setItem('selectedGroqModel', selectedGroqModel); }, [selectedGroqModel]);
@@ -196,6 +214,13 @@ const App = () => {
             maintenanceEngine.updateContext(context);
         }
     }, [isGodMode, existingPages, apiClients, isCrawling]); 
+
+    // SOTA: Apply God Mode Opportunity Scoring whenever pages change
+    useEffect(() => {
+        if (existingPages.length > 0 && !existingPages[0].opportunityScore) {
+            setExistingPages(prev => prev.map(p => godModeService.calculateOpportunityScore(p)));
+        }
+    }, [existingPages.length]);
 
     const validateApiKey = useCallback(debounce(async (provider: string, key: string) => {
         if (!key) { setApiKeyStatus(prev => ({ ...prev, [provider]: 'idle' })); setApiClients(prev => ({ ...prev, [provider]: null })); return; }
@@ -334,6 +359,10 @@ const App = () => {
     const handleStopGeneration = (itemId: string | null = null) => { if (itemId) { stopGenerationRef.current.add(itemId); dispatch({ type: 'UPDATE_STATUS', payload: { id: itemId, status: 'idle', statusText: 'Stopped' } }); } else { items.forEach(item => { if (item.status === 'generating') { stopGenerationRef.current.add(item.id); dispatch({ type: 'UPDATE_STATUS', payload: { id: item.id, status: 'idle', statusText: 'Stopped' } }); } }); setIsGenerating(false); } };
     const analyzableForRewrite = useMemo(() => existingPages.filter(p => selectedHubPages.has(p.id) && p.analysis).length, [selectedHubPages, existingPages]);
 
+    if (!hasEnteredApp) {
+        return <LandingPage onEnterApp={() => setHasEnteredApp(true)} />;
+    }
+
     return (
         <div className="app-container">
             <header className="app-header">
@@ -353,6 +382,7 @@ const App = () => {
                     <SidebarNav activeView={activeView} onNavClick={setActiveView} />
                 </aside>
                 <main className="main-content">
+                    {/* ... Rest of the app content ... */}
                     {activeView === 'setup' && (
                         <div className="setup-view">
                             <div className="page-header">
@@ -529,346 +559,216 @@ const App = () => {
                             </div>
                         </div>
                     )}
+
+                    {/* --- CONTENT STRATEGY VIEW (FIXED) --- */}
                     {activeView === 'strategy' && (
-                        <div className="content-strategy-view">
-                             <div className="page-header">
-                                <h2 className="gradient-headline">2. Content Strategy & Planning</h2>
-                            </div>
-                            <div className="tabs-container">
-                                <div className="tabs" role="tablist">
-                                    <button className={`tab-btn ${contentMode === 'bulk' ? 'active' : ''}`} onClick={() => setContentMode('bulk')} role="tab">Bulk Content Planner</button>
-                                    <button className={`tab-btn ${contentMode === 'single' ? 'active' : ''}`} onClick={() => setContentMode('single')} role="tab">Single Article</button>
-                                    <button className={`tab-btn ${contentMode === 'gapAnalysis' ? 'active' : ''}`} onClick={() => setContentMode('gapAnalysis')} role="tab">Gap Analysis (God Mode)</button>
-                                    <button className={`tab-btn ${contentMode === 'refresh' ? 'active' : ''}`} onClick={() => setContentMode('refresh')} role="tab">Quick Refresh & Validate</button>
-                                    <button className={`tab-btn ${contentMode === 'hub' ? 'active' : ''}`} onClick={() => setContentMode('hub')} role="tab">Content Hub</button>
-                                    <button className={`tab-btn ${contentMode === 'imageGenerator' ? 'active' : ''}`} onClick={() => setContentMode('imageGenerator')} role="tab">Image Generator</button>
-                                </div>
-                            </div>
+                        <div className="strategy-view">
+                            <h2 className="gradient-headline">2. Content Strategy & Planning</h2>
                             
-                            {contentMode === 'single' && (
-                                <div className="tab-panel">
-                                    <h3>Single Article</h3>
-                                     <div className="form-group">
-                                        <label htmlFor="primaryKeywords">Primary Keywords</label>
-                                        <textarea id="primaryKeywords" value={primaryKeywords} onChange={e => setPrimaryKeywords(e.target.value)} rows={5}></textarea>
-                                    </div>
-                                    <button className="btn" onClick={handleGenerateMultipleFromKeywords} disabled={!primaryKeywords.trim()}>Go to Review &rarr;</button>
-                                </div>
-                            )}
+                            {/* Sub-Tabs */}
+                            <div className="strategy-tabs-container">
+                                {[
+                                    { id: 'planner', label: 'Bulk Content Planner', icon: '📅' },
+                                    { id: 'single', label: 'Single Article', icon: '📝' },
+                                    { id: 'gap', label: 'Gap Analysis (God Mode)', icon: '🧠' },
+                                    { id: 'refresh', label: 'Quick Refresh', icon: '⚡' },
+                                    { id: 'hub', label: 'Content Hub', icon: '🕸️' },
+                                    { id: 'images', label: 'Image Generator', icon: '🎨' }
+                                ].map(tab => (
+                                    <button 
+                                        key={tab.id}
+                                        className={`strategy-tab-btn ${strategyTab === tab.id ? 'active' : ''}`}
+                                        onClick={() => setStrategyTab(tab.id)}
+                                    >
+                                        <span>{tab.icon}</span> {tab.label}
+                                    </button>
+                                ))}
+                            </div>
 
-                            {contentMode === 'gapAnalysis' && (
-                                <div className="tab-panel">
-                                    <h3 style={{background: 'linear-gradient(to right, #3b82f6, #8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontSize: '1.8rem', marginBottom: '0.5rem'}}>Blue Ocean Gap Analysis</h3>
-                                    
-                                    <div className="god-mode-panel" style={{
-                                        background: isGodMode ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(6, 78, 59, 0.3))' : 'rgba(255,255,255,0.02)',
-                                        border: isGodMode ? '1px solid #10B981' : '1px solid var(--border-subtle)',
-                                        padding: '1.5rem', borderRadius: '12px', marginBottom: '2rem', transition: 'all 0.3s ease'
-                                    }}>
-                                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem'}}>
-                                            <div>
-                                                <h3 style={{margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', color: isGodMode ? '#10B981' : 'white'}}>
-                                                    {isGodMode ? '⚡ GOD MODE ACTIVE' : '💤 God Mode (Autonomous Maintenance)'}
-                                                </h3>
-                                                <p style={{fontSize: '0.85rem', color: '#94A3B8', margin: '0.5rem 0 0 0'}}>
-                                                    Automatically scans your sitemap, prioritizes critical pages, and performs surgical SEO/Fact updates forever.
-                                                </p>
-                                            </div>
-                                            <label className="switch" style={{position: 'relative', display: 'inline-block', width: '60px', height: '34px'}}>
-                                                <input type="checkbox" checked={isGodMode} onChange={e => setIsGodMode(e.target.checked)} style={{opacity: 0, width: 0, height: 0}} />
-                                                <span className="slider round" style={{
-                                                    position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0, 
-                                                    backgroundColor: isGodMode ? '#10B981' : '#334155', transition: '.4s', borderRadius: '34px'
-                                                }}>
-                                                    <span style={{
-                                                        position: 'absolute', content: "", height: '26px', width: '26px', left: '4px', bottom: '4px', 
-                                                        backgroundColor: 'white', transition: '.4s', borderRadius: '50%',
-                                                        transform: isGodMode ? 'translateX(26px)' : 'translateX(0)'
-                                                    }}></span>
-                                                </span>
-                                            </label>
+                            <div className="strategy-content-area">
+                                {/* 1. BULK PLANNER */}
+                                {strategyTab === 'planner' && (
+                                    <div className="setup-card strategy-form-container">
+                                        <h3>Bulk Content Planner</h3>
+                                        <p className="help-text">Enter a broad topic to generate a complete pillar page and cluster content plan.</p>
+                                        <div className="form-group">
+                                            <label>Broad Topic</label>
+                                            <input type="text" value={topic} onChange={e => setTopic(e.target.value)} placeholder="e.g., Landscape Photography" />
                                         </div>
+                                        <button className="btn" onClick={handleGenerateClusterPlan} disabled={isGenerating}>
+                                            {isGenerating ? 'Generating...' : 'Generate Content Plan'}
+                                        </button>
+                                    </div>
+                                )}
 
-                                        {isGodMode && (
-                                            <div className="god-mode-dashboard" style={{display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '1rem'}}>
-                                                <div className="god-mode-logs" style={{
-                                                    background: '#020617', padding: '1rem', borderRadius: '8px', 
-                                                    fontFamily: 'monospace', fontSize: '0.8rem', height: '200px', overflowY: 'auto',
-                                                    border: '1px solid #1e293b', boxShadow: 'inset 0 2px 4px 0 rgba(0,0,0,0.5)'
-                                                }}>
-                                                    <div style={{color: '#64748B', borderBottom: '1px solid #1e293b', paddingBottom: '0.5rem', marginBottom: '0.5rem'}}>SYSTEM LOGS</div>
-                                                    {godModeLogs.map((log, i) => (
-                                                        <div key={i} style={{marginBottom: '4px', color: log.includes('Error') ? '#EF4444' : log.includes('✅') ? '#10B981' : '#94A3B8'}}>
-                                                            <span style={{opacity: 0.5}}>[{new Date().toLocaleTimeString()}]</span> {log}
-                                                        </div>
-                                                    ))}
-                                                    {godModeLogs.length === 0 && <div style={{color: '#64748B'}}>Initializing engine... waiting for tasks...</div>}
-                                                </div>
+                                {/* 2. SINGLE ARTICLE */}
+                                {strategyTab === 'single' && (
+                                    <div className="setup-card strategy-form-container">
+                                        <h3>Single Article</h3>
+                                        <div className="form-group">
+                                            <label>Primary Keywords (One per line)</label>
+                                            <textarea rows={5} value={primaryKeywords} onChange={e => setPrimaryKeywords(e.target.value)} placeholder="e.g., best canon lenses 2025"></textarea>
+                                        </div>
+                                        <button className="btn" onClick={handleGenerateMultipleFromKeywords}>Add to Queue</button>
+                                    </div>
+                                )}
 
-                                                <div className="optimized-list" style={{
-                                                    background: '#020617', padding: '1rem', borderRadius: '8px', 
-                                                    height: '200px', overflowY: 'auto', border: '1px solid #1e293b'
-                                                }}>
-                                                    <div style={{color: '#10B981', borderBottom: '1px solid #1e293b', paddingBottom: '0.5rem', marginBottom: '0.5rem', fontWeight: 'bold'}}>
-                                                        ✅ RECENTLY OPTIMIZED ({optimizedHistory.length})
-                                                    </div>
-                                                    {optimizedHistory.length === 0 ? (
-                                                        <div style={{color: '#64748B', fontSize: '0.85rem', fontStyle: 'italic', padding: '1rem', textAlign: 'center'}}>
-                                                            No posts optimized in this session yet. Waiting for targets...
-                                                        </div>
-                                                    ) : (
-                                                        optimizedHistory.map((item, i) => (
-                                                            <div key={i} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem', borderBottom: '1px solid #1e293b'}}>
-                                                                <div style={{overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', marginRight: '1rem'}}>
-                                                                    <a href={item.url} target="_blank" rel="noopener noreferrer" style={{color: '#E2E8F0', textDecoration: 'none', fontWeight: 500, fontSize: '0.9rem'}}>
-                                                                        {item.title}
-                                                                    </a>
-                                                                </div>
-                                                                <div style={{color: '#64748B', fontSize: '0.75rem', whiteSpace: 'nowrap'}}>{item.timestamp}</div>
-                                                            </div>
-                                                        ))
-                                                    )}
-                                                </div>
+                                {/* 3. GAP ANALYSIS (GOD MODE) */}
+                                {strategyTab === 'gap' && (
+                                    <div className="strategy-form-container">
+                                        <div className="setup-card">
+                                            <h3>Blue Ocean Gap Analysis</h3>
+                                            <p className="help-text">Automatically scans your niche for missing high-value topics.</p>
+                                            {existingPages.length === 0 && <p className="error">Sitemap Required: Please crawl your sitemap in the "Content Hub" tab first. The AI needs to know your existing content to find the gaps.</p>}
+                                            <div className="form-group">
+                                                <label>Niche Topic</label>
+                                                <input type="text" value={topic} onChange={e => setTopic(e.target.value)} placeholder="e.g. SEO Software" />
+                                            </div>
+                                            <button className="btn" onClick={handleAnalyzeGaps} disabled={isAnalyzingGaps || existingPages.length === 0}>
+                                                {isAnalyzingGaps ? 'Analyzing...' : 'Find Content Gaps'}
+                                            </button>
+                                        </div>
+                                        {gapSuggestions.length > 0 && (
+                                            <div className="guardian-card">
+                                                <h4>Identified Gaps</h4>
+                                                <table className="content-hub-table">
+                                                    <thead><tr><th>Keyword</th><th>Intent</th><th>Volume</th><th>Action</th></tr></thead>
+                                                    <tbody>
+                                                        {gapSuggestions.map((g, i) => (
+                                                            <tr key={i}>
+                                                                <td>{g.keyword}</td>
+                                                                <td>{g.searchIntent}</td>
+                                                                <td>{g.monthlyVolume}</td>
+                                                                <td><button className="btn btn-small" onClick={() => handleGenerateGapArticle(g)}>Create</button></td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        )}
+                                        {existingPages.length > 0 && (
+                                            <div className="guardian-card" style={{marginTop: '2rem', border: '1px solid #8B5CF6'}}>
+                                                <h3 style={{color: '#8B5CF6'}}>💤 God Mode (Autonomous Maintenance)</h3>
+                                                <p className="help-text">Automatically scans your sitemap, prioritizes critical pages, and performs surgical SEO/Fact updates forever.</p>
+                                                <MoneyPanel pages={existingPages} onExecute={(p) => {
+                                                    const newItem: ContentItem = { id: p.id, title: p.title, type: 'refresh', originalUrl: p.id, status: 'idle', statusText: 'Queued', generatedContent: null, crawledContent: null };
+                                                    dispatch({ type: 'SET_ITEMS', payload: [newItem] });
+                                                    setActiveView('review');
+                                                }} />
                                             </div>
                                         )}
                                     </div>
+                                )}
 
-                                    {existingPages.length === 0 && !sitemapUrl ? (
-                                        <div className="sitemap-warning" style={{padding: '1.5rem', background: 'rgba(220, 38, 38, 0.1)', border: '1px solid var(--error)', borderRadius: '12px', color: '#FCA5A5', display: 'flex', alignItems: 'center', gap: '1rem'}}>
-                                            <XIcon />
-                                            <div>
-                                                <strong>Sitemap Required:</strong> Please crawl your sitemap in the "Quick Refresh" tab first. The AI needs to know your existing content to find the gaps.
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <button className="btn" onClick={handleAnalyzeGaps} disabled={isAnalyzingGaps} style={{width: '100%', padding: '1rem', fontSize: '1rem'}}>
-                                            {isAnalyzingGaps ? 'Scanning...' : '🚀 Run Deep Gap Analysis'}
-                                        </button>
-                                    )}
-                                </div>
-                            )}
-                            {contentMode === 'refresh' && (
-                                <div className="tab-panel">
-                                    <h3>Quick Refresh & Validate</h3>
-                                    <div className="tabs" style={{marginBottom: '1.5rem', borderBottom: '1px solid var(--border-subtle)'}}>
-                                        <button className={`tab-btn ${refreshMode === 'single' ? 'active' : ''}`} onClick={() => setRefreshMode('single')} style={{fontSize: '0.85rem'}}>Single URL</button>
-                                        <button className={`tab-btn ${refreshMode === 'bulk' ? 'active' : ''}`} onClick={() => setRefreshMode('bulk')} style={{fontSize: '0.85rem'}}>Bulk via Sitemap</button>
-                                    </div>
-                                    {refreshMode === 'single' && (
-                                        <>
-                                            <div className="form-group">
-                                                <label htmlFor="refreshUrl">Post URL to Refresh</label>
-                                                <input type="url" id="refreshUrl" value={refreshUrl} onChange={e => setRefreshUrl(e.target.value)} placeholder="https://example.com/my-old-post" />
-                                            </div>
-                                            <button className="btn" onClick={handleRefreshContent} disabled={isGenerating || !refreshUrl}>{isGenerating ? 'Refreshing...' : 'Refresh & Validate'}</button>
-                                        </>
-                                    )}
-                                    {refreshMode === 'bulk' && (
-                                        <div className="sitemap-crawler-form">
-                                            <div className="form-group">
-                                                 <label htmlFor="sitemapUrl">Sitemap URL</label>
-                                                 <input type="url" id="sitemapUrl" value={sitemapUrl} onChange={e => setSitemapUrl(e.target.value)} placeholder="https://example.com/sitemap_index.xml" />
-                                            </div>
-                                            <button className="btn" onClick={handleCrawlSitemap} disabled={isCrawling}>{isCrawling ? 'Crawling...' : 'Crawl Sitemap'}</button>
-                                            {crawlMessage && <div className="crawl-status">{crawlMessage}</div>}
-                                            {existingPages.length > 0 && (
-                                                <div className="content-hub-table-container" style={{marginTop: '1.5rem'}}>
-                                                    {/* Same Table as Hub, simplified here for length */}
-                                                    <div style={{padding:'1rem'}}>Content Hub Loaded ({existingPages.length} pages). Go to "Content Hub" tab for bulk actions.</div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                            {contentMode === 'hub' && (
-                                 <div className="tab-panel">
-                                    <h3>Content Hub & Rewrite Assistant</h3>
-                                    <div className="sitemap-crawler-form">
+                                {/* 4. QUICK REFRESH */}
+                                {strategyTab === 'refresh' && (
+                                    <div className="setup-card strategy-form-container">
+                                        <h3>Quick Refresh & Validate</h3>
+                                        <p className="help-text">Seamlessly update existing posts. Crawl your sitemap to update hundreds of URLs or enter a single URL for a quick fix.</p>
                                         <div className="form-group">
-                                             <label htmlFor="sitemapUrl">Sitemap URL</label>
-                                             <input type="url" id="sitemapUrl" value={sitemapUrl} onChange={e => setSitemapUrl(e.target.value)} placeholder="https://example.com/sitemap_index.xml" />
+                                            <label>Post URL to Refresh</label>
+                                            <input type="url" value={refreshUrl} onChange={e => setRefreshUrl(e.target.value)} placeholder="https://example.com/my-old-post" />
                                         </div>
-                                        <button className="btn" onClick={handleCrawlSitemap} disabled={isCrawling}>{isCrawling ? 'Crawling...' : 'Crawl Sitemap'}</button>
+                                        <button className="btn" onClick={handleRefreshContent}>Refresh & Validate</button>
                                     </div>
-                                    {crawlMessage && <div className="crawl-status">{crawlMessage}</div>}
-                                    {existingPages.length > 0 && (
-                                        <div className="content-hub-table-container">
-                                            <div className="table-controls">
-                                                <input type="search" placeholder="Search pages..." className="filter-input" value={hubSearchFilter} onChange={e => setHubSearchFilter(e.target.value)} />
-                                                 <select value={hubStatusFilter} onChange={e => setHubStatusFilter(e.target.value)}>
-                                                    <option value="All">All Statuses</option>
-                                                    <option value="Critical">Critical</option>
-                                                    <option value="High">High</option>
-                                                    <option value="Medium">Medium</option>
-                                                    <option value="Healthy">Healthy</option>
-                                                </select>
-                                                <div className="table-actions">
-                                                    <button className="btn btn-secondary" onClick={handleAnalyzeSelectedPages} disabled={isAnalyzingHealth || selectedHubPages.size === 0}>
-                                                        {isAnalyzingHealth ? `Analyzing... (${healthAnalysisProgress.current}/${healthAnalysisProgress.total})` : `Analyze Selected (${selectedHubPages.size})`}
+                                )}
+
+                                {/* 5. CONTENT HUB */}
+                                {strategyTab === 'hub' && (
+                                    <div className="strategy-form-container">
+                                        <div className="setup-card">
+                                            <h3>Content Hub & Rewrite Assistant</h3>
+                                            <p className="help-text">Enter your sitemap URL to crawl your existing content. Analyze posts for SEO health and generate strategic rewrite plans.</p>
+                                            <div className="form-group">
+                                                <label>Sitemap URL</label>
+                                                <div style={{display:'flex', gap:'1rem'}}>
+                                                    <input type="url" value={sitemapUrl} onChange={e => setSitemapUrl(e.target.value)} placeholder="https://example.com/sitemap_index.xml" />
+                                                    <button className="btn" onClick={handleCrawlSitemap} disabled={isCrawling}>
+                                                        {isCrawling ? 'Crawling...' : 'Crawl Sitemap'}
                                                     </button>
-                                                    <button className="btn" onClick={handleRewriteSelected} disabled={analyzableForRewrite === 0}>Rewrite Selected ({analyzableForRewrite})</button>
                                                 </div>
                                             </div>
-                                            <table className="content-hub-table">
-                                                <thead>
-                                                    <tr>
-                                                        <th><input type="checkbox" onChange={handleToggleHubPageSelectAll} checked={selectedHubPages.size > 0 && selectedHubPages.size === filteredAndSortedHubPages.length} /></th>
-                                                        <th onClick={() => handleHubSort('title')}>Title & Slug</th>
-                                                        <th onClick={() => handleHubSort('daysOld')}>Age</th>
-                                                        <th onClick={() => handleHubSort('updatePriority')}>Status</th>
-                                                         <th>Analysis & Actions</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                {isCrawling ? <SkeletonLoader rows={10} columns={5} /> : paginatedHubPages.map(page => (
-                                                        <tr key={page.id}>
-                                                            <td><input type="checkbox" checked={selectedHubPages.has(page.id)} onChange={() => handleToggleHubPageSelect(page.id)} /></td>
-                                                            <td className="hub-title-cell">
-                                                                <a href={page.id} target="_blank" rel="noopener noreferrer">{sanitizeTitle(page.title, page.slug)}</a>
-                                                                <div className="slug">{page.id}</div>
-                                                            </td>
-                                                            <td>{page.daysOld !== null ? `${page.daysOld} days` : 'N/A'}</td>
-                                                            <td><div className="status-cell">{page.updatePriority ? <span className={`priority-${page.updatePriority}`}>{page.updatePriority}</span> : 'Not Analyzed'}</div></td>
-                                                            <td>
-                                                               {page.status === 'analyzing' && <div className="status-cell"><div className="status-indicator analyzing"></div>Analyzing...</div>}
-                                                               {page.status === 'error' && (
-                                                                    <div className="status-cell error" title={page.justification || "Unknown Error"}>
-                                                                        <XIcon /> {page.justification ? (page.justification.length > 20 ? page.justification.substring(0,18) + '...' : page.justification) : 'Error'}
-                                                                    </div>
-                                                                )}
-                                                                {page.status === 'analyzed' && page.analysis && (
-                                                                    <button className="btn btn-small" onClick={() => setViewingAnalysis(page)}>View Rewrite Plan</button>
-                                                                )}
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                            <div className="pagination-controls" style={{display: 'flex', justifyContent: 'space-between', padding: '1rem', borderTop: '1px solid var(--border-subtle)'}}>
-                                                <button className="btn btn-secondary btn-small" disabled={hubPage === 1} onClick={() => setHubPage(p => Math.max(1, p - 1))}>Previous</button>
-                                                <span style={{color: '#94A3B8'}}>Page {hubPage} of {totalPages}</span>
-                                                <button className="btn btn-secondary btn-small" disabled={hubPage === totalPages} onClick={() => setHubPage(p => Math.min(totalPages, p + 1))}>Next</button>
+                                            <p>{crawlMessage}</p>
+                                        </div>
+                                        {existingPages.length > 0 && (
+                                            <div className="guardian-card">
+                                                <h4>Existing Content ({existingPages.length})</h4>
+                                                <table className="content-hub-table">
+                                                    <thead><tr><th>Title</th><th>Status</th><th>Score</th></tr></thead>
+                                                    <tbody>
+                                                        {existingPages.slice(0, 10).map(p => (
+                                                            <tr key={p.id}>
+                                                                <td>{p.title}</td>
+                                                                <td>{p.status}</td>
+                                                                <td>{p.opportunityScore}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
                                             </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                             {contentMode === 'imageGenerator' && (
-                                <div className="tab-panel">
-                                    <h3>SOTA Image Generator</h3>
-                                    <div className="form-group">
-                                        <label htmlFor="imagePrompt">Image Prompt</label>
-                                        <textarea id="imagePrompt" value={imagePrompt} onChange={e => setImagePrompt(e.target.value)} rows={4} placeholder="e.g., A photorealistic image of a golden retriever puppy playing in a field of flowers, cinematic lighting, 16:9 aspect ratio." />
+                                        )}
                                     </div>
-                                    <div className="form-group-row">
-                                        <div className="form-group">
-                                            <label htmlFor="numImages">Number of Images</label>
-                                            <select id="numImages" value={numImages} onChange={e => setNumImages(Number(e.target.value))}>
-                                                {[1,2,3,4].map(n => <option key={n} value={n}>{n}</option>)}
-                                            </select>
+                                )}
+
+                                {/* 6. IMAGE GENERATOR */}
+                                {strategyTab === 'images' && (
+                                    <div className="strategy-form-container">
+                                        <div className="setup-card">
+                                            <h3>SOTA Image Generator</h3>
+                                            <p className="help-text">Generate high-quality images for your content using DALL-E 3 or Gemini Imagen. Describe the image you want in detail.</p>
+                                            <div className="form-group">
+                                                <label>Image Prompt</label>
+                                                <textarea rows={3} value={imagePrompt} onChange={e => setImagePrompt(e.target.value)} placeholder="e.g., A photorealistic image of a golden retriever puppy playing in a field of flowers, cinematic lighting, 16:9 aspect ratio."></textarea>
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Number of Images</label>
+                                                <input type="number" min="1" max="4" value={numImages} onChange={e => setNumImages(parseInt(e.target.value))} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Aspect Ratio</label>
+                                                <select value={aspectRatio} onChange={e => setAspectRatio(e.target.value)}>
+                                                    <option value="1:1">1:1 (Square)</option>
+                                                    <option value="16:9">16:9 (Landscape)</option>
+                                                </select>
+                                            </div>
+                                            <button className="btn" onClick={handleGenerateImages} disabled={isGeneratingImages}>
+                                                {isGeneratingImages ? 'Generating...' : 'Generate Images'}
+                                            </button>
+                                            {imageGenerationError && <p className="error">{imageGenerationError}</p>}
                                         </div>
-                                         <div className="form-group">
-                                            <label htmlFor="aspectRatio">Aspect Ratio</label>
-                                            <select id="aspectRatio" value={aspectRatio} onChange={e => setAspectRatio(e.target.value)}>
-                                                <option value="1:1">1:1 (Square)</option>
-                                                <option value="16:9">16:9 (Widescreen)</option>
-                                                <option value="9:16">9:16 (Vertical)</option>
-                                                <option value="4:3">4:3 (Landscape)</option>
-                                                <option value="3:4">3:4 (Portrait)</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <button className="btn" onClick={handleGenerateImages} disabled={isGeneratingImages || !imagePrompt}>{isGeneratingImages ? <><div className="spinner"></div> Generating...</> : 'Generate Images'}</button>
-                                    {imageGenerationError && <p className="error" style={{marginTop: '1rem'}}>{imageGenerationError}</p>}
-                                    {generatedImages.length > 0 && (
-                                        <div className="image-assets-grid" style={{marginTop: '2rem'}}>
-                                            {generatedImages.map((image, index) => (
-                                                <div key={index} className="image-asset-card">
-                                                    <img src={image.src} alt={image.prompt} loading="lazy" />
-                                                    <div className="image-asset-details">
-                                                        <button className="btn btn-small" onClick={() => handleDownloadImage(image.src, image.prompt)}>Download</button>
-                                                        <button className="btn btn-small btn-secondary" onClick={() => handleCopyText(image.prompt)}>Copy Prompt</button>
-                                                    </div>
+                                        <div className="image-assets-grid">
+                                            {generatedImages.map((img, i) => (
+                                                <div key={i} className="image-asset-card">
+                                                    <img src={img.src} alt={img.prompt} style={{width:'100%'}} />
                                                 </div>
                                             ))}
                                         </div>
-                                    )}
-                                </div>
-                            )}
-                            {contentMode === 'bulk' && (
-                                <div className="tab-panel">
-                                    <h3>Bulk Content Planner</h3>
-                                    <div className="form-group">
-                                        <label htmlFor="topic">Broad Topic</label>
-                                        <input type="text" id="topic" value={topic} onChange={e => setTopic(e.target.value)} placeholder="e.g., Landscape Photography" />
                                     </div>
-                                    <button className="btn" onClick={handleGenerateClusterPlan} disabled={isGenerating || !topic}>{isGenerating ? 'Generating...' : 'Generate Content Plan'}</button>
-                                </div>
-                            )}
+                                )}
+                            </div>
                         </div>
                     )}
-                    {/* ... Review View ... */}
+
+                    {/* --- REVIEW VIEW --- */}
                     {activeView === 'review' && (
-                        <div className="review-export-view">
-                            <div className="page-header">
-                                <h2 className="gradient-headline">3. Review & Export</h2>
-                                <p>Review your generated content, check SEO scores, edit as needed, and publish directly to WordPress.</p>
-                            </div>
-                             <div className="table-controls">
-                                <input type="search" placeholder="Filter content..." className="filter-input" value={filter} onChange={e => setFilter(e.target.value)} />
-                                <div className="table-actions">
-                                    <button className="btn" onClick={handleGenerateSelected} disabled={isGenerating || selectedItems.size === 0}>
-                                        {isGenerating ? `Generating... (${generationProgress.current}/${generationProgress.total})` : `Generate Selected (${selectedItems.size})`}
-                                    </button>
-                                    {isGenerating && <button className="btn btn-secondary" onClick={() => handleStopGeneration()}>Stop All</button>}
-                                    <button className="btn btn-secondary" onClick={() => setIsBulkPublishModalOpen(true)} disabled={selectedItems.size === 0}>
-                                        Bulk Publish ({selectedItems.size})
-                                    </button>
-                                </div>
-                            </div>
-                            <div className="review-table-container">
-                                <table className="review-table">
-                                    <thead>
-                                        <tr>
-                                            <th><input type="checkbox" onChange={handleToggleSelectAll} checked={selectedItems.size > 0 && selectedItems.size === filteredAndSortedItems.length} /></th>
-                                            <th onClick={() => handleSort('title')}>Title</th>
-                                            <th onClick={() => handleSort('type')}>Type</th>
-                                            <th onClick={() => handleSort('status')}>Status</th>
-                                            <th>Actions</th>
+                        <div className="review-view">
+                            <h2 className="gradient-headline">3. Review & Export</h2>
+                            <table className="review-table">
+                                <thead><tr><th>Title</th><th>Type</th><th>Status</th><th>Actions</th></tr></thead>
+                                <tbody>
+                                    {items.length === 0 ? <tr><td colSpan={4} style={{textAlign:'center', padding:'2rem'}}>No items queued.</td></tr> : 
+                                    items.map(item => (
+                                        <tr key={item.id}>
+                                            <td>{item.title}</td>
+                                            <td><span className={`badge ${item.type}`}>{item.type}</span></td>
+                                            <td>{item.statusText}</td>
+                                            <td>
+                                                <button className="btn btn-small" onClick={() => setSelectedItemForReview(item)}>Review</button>
+                                            </td>
                                         </tr>
-                                    </thead>
-                                    <tbody>
-                                        {filteredAndSortedItems.length === 0 ? (
-                                             <tr><td colSpan={5} style={{textAlign: 'center', padding: '2rem', color: 'var(--text-tertiary)'}}>No content items yet. Go to "Content Strategy" to plan some articles.</td></tr>
-                                        ) : (
-                                            filteredAndSortedItems.map(item => (
-                                                <tr key={item.id}>
-                                                    <td><input type="checkbox" checked={selectedItems.has(item.id)} onChange={() => handleToggleSelect(item.id)} /></td>
-                                                    <td>{item.title}</td>
-                                                    <td><span className={`badge ${item.type}`}>{item.type}</span></td>
-                                                    <td>
-                                                        <div className="status-cell">
-                                                            <div className={`status-indicator ${item.status}`} style={(item.status === 'error' && item.statusText.includes('TOO SHORT')) ? { backgroundColor: 'var(--warning)' } : {}}></div>
-                                                            {item.statusText}
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        {item.status === 'idle' && <button className="btn btn-small" onClick={() => handleGenerateSingle(item)}>Generate</button>}
-                                                        {item.status === 'generating' && <button className="btn btn-small btn-secondary" onClick={() => handleStopGeneration(item.id)}>Stop</button>}
-                                                        {(item.status === 'done' || (item.status === 'error' && item.generatedContent)) && (
-                                                            <button className="btn btn-small" onClick={() => setSelectedItemForReview(item)}>Review</button>
-                                                        )}
-                                                        {item.status === 'error' && (
-                                                            <button className="btn btn-small btn-secondary" onClick={() => handleGenerateSingle(item)} style={item.generatedContent ? { marginLeft: '0.5rem' } : {}}>Retry</button>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     )}
                 </main>

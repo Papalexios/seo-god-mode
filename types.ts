@@ -31,6 +31,14 @@ export type SitemapPage = {
         seoIssues: string[];
         improvementPlan: string;
     } | null;
+    // GOD MODE METRICS
+    opportunityScore?: number;
+    commercialIntent?: 'High' | 'Medium' | 'Low';
+    gscSimulated?: {
+        impressions: number;
+        clicks: number;
+        position: number;
+    };
 };
 
 export type GeneratedContent = {
@@ -69,9 +77,15 @@ export type GeneratedContent = {
         keyTakeawaysHtml: string;
         comparisonTableHtml: string;
         faqHtml: string;
-        referencesHtml: string; // SOTA: Verified References
+        referencesHtml: string; 
     };
-    isFullSurgicalRewrite?: boolean;
+    isFullSurgicalRewrite?: boolean; 
+    verificationReport?: {
+        claim: string;
+        status: 'Verified' | 'Unverified' | 'Debunked';
+        source?: string;
+        correction?: string;
+    }[];
 };
 
 export interface SiteInfo {
@@ -96,7 +110,7 @@ export type ContentItem = {
     id: string;
     title: string;
     type: 'pillar' | 'cluster' | 'standard' | 'link-optimizer' | 'refresh';
-    status: 'idle' | 'generating' | 'done' | 'error';
+    status: 'idle' | 'generating' | 'done' | 'error' | 'maintaining' | 'verifying';
     statusText: string;
     generatedContent: GeneratedContent | null;
     crawledContent: string | null;

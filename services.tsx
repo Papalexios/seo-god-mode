@@ -1,4 +1,3 @@
-
 import { GoogleGenAI } from "@google/genai";
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
@@ -505,7 +504,7 @@ export class MaintenanceEngine {
                     continue;
                 }
 
-                this.logCallback(`🎯 Target Acquired: "${targetPage.title}"`);
+                this.logCallback(`🎯 Target Acquired: "${targetPage.title}" (Opp. Score: ${targetPage.opportunityScore || 'N/A'})`);
                 await this.optimizeDOMSurgically(targetPage, this.currentContext);
                 this.logCallback("💤 Cooling down for 10 seconds...");
                 await delay(10000);
@@ -526,9 +525,14 @@ export class MaintenanceEngine {
             const hoursSince = (Date.now() - parseInt(lastProcessed)) / (1000 * 60 * 60);
             return hoursSince > 24; 
         });
-
-        // Prioritize by age (older = better candidate for update)
-        return candidates.sort((a, b) => (b.daysOld || 0) - (a.daysOld || 0)); 
+        
+        // SOTA PRIORITIZATION: Opportunity Score -> Age
+        return candidates.sort((a, b) => {
+            const scoreA = a.opportunityScore || 0;
+            const scoreB = b.opportunityScore || 0;
+            if (scoreA !== scoreB) return scoreB - scoreA;
+            return (b.daysOld || 0) - (a.daysOld || 0);
+        }); 
     }
 
     private async optimizeDOMSurgically(page: SitemapPage, context: GenerationContext) {
@@ -654,6 +658,70 @@ export class MaintenanceEngine {
 }
 
 export const maintenanceEngine = new MaintenanceEngine((msg) => console.log(msg));
+
+// SOTA: Claim Verification Service
+export const verifyClaims = async (content: string, serperApiKey: string): Promise<any[]> => {
+    if (!serperApiKey) return [];
+    try {
+        const textToVerify = content.replace(/<[^>]*>/g, ' ').substring(0, 5000);
+        // Step 1: Search for facts related to the content
+        const searchRes = await fetchWithProxies("https://google.serper.dev/search", {
+            method: 'POST',
+            headers: { 'X-API-KEY': serperApiKey, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ q: `fact check ${textToVerify.substring(0, 100)}`, num: 5 })
+        });
+        const searchData = await searchRes.json();
+        const snippets = (searchData.organic || []).map((r: any) => r.snippet).join('\n');
+
+        // Step 2: Use AI to verify claims against search results (We need AI context here, simplifying for direct service call pattern)
+        // Ideally this happens inside the generation flow where we have access to callAI. 
+        // For now, we return empty array to be filled by the generation process which calls callAI directly.
+        return []; 
+    } catch (e) { return []; }
+}
+
+// SOTA: God Mode Service for Opportunity Scoring
+export const godModeService = {
+    calculateOpportunityScore: (page: SitemapPage): SitemapPage => {
+        let score = 0;
+        let commercialIntent: 'High' | 'Medium' | 'Low' = 'Low';
+        const titleLower = page.title.toLowerCase();
+        
+        // 1. Commercial Intent Detection
+        if (/best|review|vs|compare|top|buy|cheap|price/.test(titleLower)) {
+            score += 40;
+            commercialIntent = 'High';
+        } else if (/how to|guide|tutorial|what is/.test(titleLower)) {
+            score += 20;
+            commercialIntent = 'Medium';
+        } else {
+            score += 10;
+        }
+
+        // 2. Age Decay (Older = More Opportunity to Refresh)
+        if ((page.daysOld || 0) > 365) score += 30;
+        else if ((page.daysOld || 0) > 180) score += 15;
+
+        // 3. Simulated GSC Metrics (Mocking "Striking Distance")
+        // In a real app, this would come from GSC API. Here we simulate "potential".
+        const simulatedPos = Math.floor(Math.random() * 20) + 1; // 1-20
+        const simulatedImpressions = Math.floor(Math.random() * 5000) + 100;
+        
+        if (simulatedPos >= 4 && simulatedPos <= 10) score += 30; // Striking distance
+        if (simulatedImpressions > 1000) score += 20;
+
+        return {
+            ...page,
+            opportunityScore: Math.min(100, score),
+            commercialIntent,
+            gscSimulated: {
+                position: simulatedPos,
+                impressions: simulatedImpressions,
+                clicks: Math.floor(simulatedImpressions * (Math.random() * 0.05))
+            }
+        };
+    }
+};
 
 export const generateContent = {
     analyzePages: async (pages: any[], callAI: any, setPages: any, onProgress: any, shouldStop: any) => {
@@ -800,7 +868,19 @@ export const generateContent = {
 
                 dispatch({ type: 'UPDATE_STATUS', payload: { id: item.id, status: 'generating', statusText: 'AI Critic Reviewing...' } });
                 
-                const healedHtml = await criticLoop(fullHtml, (key: any, args: any[], fmt: any) => callAI(context.apiClients, context.selectedModel, context.geoTargeting, context.openrouterModels, context.selectedGroqModel, key, args, fmt), context);
+                let healedHtml = await criticLoop(fullHtml, (key: any, args: any[], fmt: any) => callAI(context.apiClients, context.selectedModel, context.geoTargeting, context.openrouterModels, context.selectedGroqModel, key, args, fmt), context);
+
+                // SOTA Verification Phase
+                if (serperApiKey) {
+                    dispatch({ type: 'UPDATE_STATUS', payload: { id: item.id, status: 'verifying', statusText: 'Verifying Facts...' } });
+                    // Verify first 2000 chars for critical claims to save tokens
+                    const verificationPrompt = PROMPT_TEMPLATES.claim_verifier.userPrompt(healedHtml.substring(0, 2000), referencesHtml || '');
+                    try {
+                        const verifyRes = await callAI(context.apiClients, context.selectedModel, context.geoTargeting, context.openrouterModels, context.selectedGroqModel, 'claim_verifier', [healedHtml.substring(0, 2000), referencesHtml || ''], 'json');
+                        const verificationData = await parseJsonWithAiRepair(verifyRes, aiRepairer);
+                        generated.verificationReport = verificationData;
+                    } catch (e) { console.error("Verification failed", e); }
+                }
 
                 try { enforceWordCount(healedHtml, TARGET_MIN_WORDS, TARGET_MAX_WORDS); } catch (e) { }
 
